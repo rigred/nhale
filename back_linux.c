@@ -123,7 +123,9 @@ int probe_devices(NVCard *nvcard_list)
         return i;
       }
 
-      nvcard_list[i].arch = get_gpu_arch(0x0000ffff & dev);
+      nvcard_list[i].device_id = 0x0000ffff & dev;
+      nvcard_list[i].arch = get_gpu_arch(nvcard_list[i].device_id);
+      get_card_name(nvcard_list[i].device_id, nvcard_list[i].adapter_name);
 
       /*
       Thanks to all different driver version this is needed now.
