@@ -18,12 +18,14 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <getopt.h>
 
 #include "backend.h"
 #include "back_linux.h"
 #include "bios.h"
 
-//hacker.c/developer.c to try test byte ptr's and call's?
+//hacker.c/developer.c to trace test byte ptr's and call's?
 
 //NOTICE, NOTE, FIXME, TODO
 //TODO: Use uintn_t's where necessary.
@@ -39,34 +41,142 @@
 //TODO: expand bios caps to indicate what values the bios has
 //NOTE: 0x100 seems to be important value for nvflash parsing on my 3600M
 //TODO: Try to find hidden rom in system bios on laptops with no video bios stored on PROM (integrate with flashrom)
+//TODO: Make a log.c to log all tables for development
 
 NVCard *nv_card;
+int verbose;
 
-int main(void)
+void usage(void)
 {
+  printf("\nnhale v0.0\n");
+  printf("Yet another Nvidia rom editor.  Use this program at your own risk.\n\n");
+
+  printf("Options:\n");
+  printf("   --list\t\t\tList all detected nvidia cards and their\n\t\t\t\tindices.\n");
+  printf("   -l, --load <filename>\tLoad input file.\n");
+  printf("   -s, --save <filename>\tSave output file.\n");
+  printf("   -i, --index <num>\t\tUse card at this index for all operations.\n\t\t\t\tFind indices with --list.\n");
+  printf("   -n, --no-checksum\t\tDo not correct checksum on file save.\n");
+  printf("   -p, --info\t\t\tPrint the rom information.\n");
+  printf("   -v, --verbose\t\tPrint verbose information.\n");
+  printf("   -h, --help\t\t\tPrint this usage information.\n\n");
+}
+
+void cleanup(char *a, char *b)
+{
+  free(a);
+  free(b);
+}
+
+int main(int argc, char **argv)
+{
+  int c;
   int i, num_cards;
-  NVCard cards[MAX_CARDS];
+  NVCard card_list[MAX_CARDS];
   struct nvbios bios;
-  char filename[13];
+  char *infile = NULL, *outfile = NULL;
+  int card_index = -1;
+  int ncc = 0;
+  static int list_flag = 0;
+  int print_info = 0;
+  int option_index = 0;  // getopt_long stores the option index here
 
-  num_cards = probe_devices(cards);
-
-  for(i = 0; i < num_cards; i++)
+  static struct option long_options[] =
   {
-    nv_card = cards + i;
-    map_mem(nv_card->dev_name);
+    {"list",        no_argument,       &list_flag, 1},
+    {"load",        required_argument, 0, 'l'},
+    {"save",        required_argument, 0, 's'},
+    {"index",       required_argument, 0, 'i'},
+    {"no-checksum", no_argument,       0, 'n'},
+    {"info"       , no_argument,       0, 'p'},
+    {"verbose"    , no_argument,       0, 'v'},
+    {"help"       , no_argument,       0, 'h'},
+    {0, 0, 0, 0}
+  };
 
-    if(read_bios(&bios, NULL))
+  while((c = getopt_long (argc, argv, "npvhl:s:i:", long_options, &option_index)) != -1)
+  {
+    switch (c)
     {
-      print_bios_info(&bios);
-      sprintf(filename, "dump%X.rom", i);
-      //set_speaker(&bios,0);
-      if(write_bios(&bios, filename))
-        printf("Bios outputted to file '%s'\n", filename);
+      case 0:
+        break;
+      case 'l':
+        infile = strdup(optarg);
+        break;
+      case 's':
+        outfile = strdup(optarg);
+        break;
+      case 'i':
+        card_index = atoi(optarg);
+        break;
+      case 'n':
+        ncc = 1;
+        break;
+      case 'p':
+        print_info = 1;
+        break;
+      case 'v':
+        verbose = 1;
+        break;
+      case 'h':
+        usage();
+        break;
+      default:
+        usage();
+        return -1;
     }
-
-    unmap_mem();
   }
+
+  if (optind < argc)
+  {
+    usage();
+    return -1;
+  }
+
+  num_cards = probe_devices(card_list);
+  if(!infile && !num_cards)
+  {
+    printf("No Nvidia cards detected");
+    return -1;
+  }
+
+  if(list_flag)
+  {
+    for(i = 0; i < num_cards; i++)
+    {
+      printf("%d\t%d\t%s\n", i, card_list[i].device_id, card_list[i].adapter_name);
+    }
+  }
+
+  if(!infile && num_cards > 1 && card_index == -1)
+  {
+    printf("There are multiple Nvidia cards detected on this machine.\n");
+    printf("Please use -i or --index to specify which card to use for operations\n");
+    return -1;
+  }
+
+  // Nothing left to do
+  if(!outfile && !print_info)
+    return 0;
+
+  if(num_cards == 1)
+    card_index = 0;
+
+  nv_card = card_list + card_index;
+  map_mem(nv_card->dev_name);
+
+  if(read_bios(&bios, infile))
+  {
+    if(print_info)
+      print_bios_info(&bios);
+
+    bios.no_correct_checksum = ncc;
+    if(outfile)
+      if(!write_bios(&bios, outfile))
+        printf("Unable to create rom dump");
+  }
+
+  unmap_mem();
 
   return 0;
 }
