@@ -156,7 +156,6 @@ int load_bios_file(struct nvbios *, const char *);
 int load_bios_pramin(struct nvbios *);
 int load_bios_prom(struct nvbios *);
 void print_bios_info(struct nvbios *);
-void print_nested_func_names(int, const char *);
 int set_speaker(struct nvbios *, char);
 int disable_print(struct nvbios *, char);
 
