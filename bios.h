@@ -125,7 +125,8 @@ void nv_read_masked_segment(struct nvbios *, char *, u_short, u_short, u_char);
 void nv_write_masked_segment(struct nvbios *, char *, u_short, u_short, u_char);
 void bios_version_to_str(char *, int);
 int str_to_bios_version(char *);
-void read_nv30_performance_table(struct nvbios *, int); //TODO: inverse
+void nv30_read_performance_table(struct nvbios *, int);
+void nv30_write_performance_table(struct nvbios *, int);
 void nv40_bios_version_to_str(struct nvbios *, char *, short);
 void nv40_str_to_bios_version(struct nvbios *, char *, short);
 void read_bit_performance_table(struct nvbios *, int);
@@ -136,8 +137,10 @@ void read_voltage_table(struct nvbios *, int);
 void write_voltage_table(struct nvbios *, int);
 void read_string_table(struct nvbios *, int, int);
 void write_string_table(struct nvbios *, int, int);
-void nv5_parse(struct nvbios *, u_short); //TODO: inverse
-void nv30_parse(struct nvbios *, u_short); //TODO: inverse
+void nv5_read(struct nvbios *, u_short);
+void nv5_write(struct nvbios *, u_short);
+void nv30_read(struct nvbios *, u_short);
+void nv30_write(struct nvbios *, u_short);
 void read_bit_structure(struct nvbios *, u_int);
 void write_bit_structure(struct nvbios *, u_int);
 u_int locate(struct nvbios *, char *, int);

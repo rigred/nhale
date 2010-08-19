@@ -153,9 +153,9 @@ int str_to_bios_version(char *str)
 }
 
 /* Parse the GeforceFX performance table */
-void read_nv30_performance_table(struct nvbios *bios, int offset)
+void nv30_read_performance_table(struct nvbios *bios, int offset)
 {
-  short i, num_entries;
+  short i;
   u_char start;
   u_char size;
 //  int tmp = 0;
@@ -163,13 +163,15 @@ void read_nv30_performance_table(struct nvbios *bios, int offset)
   /* read how far away the start is */
   start = bios->rom[offset];
   // !!! Warning this was a signed char *rom
-  num_entries = bios->rom[offset+2];
+  bios->perf_entries = bios->rom[offset+2];
   size = bios->rom[offset + 3];
 
-  bios->perf_entries=0;
   offset += start + 1;
-  for(i = 0; i < num_entries; i++)
+
+  // TODO: Look for the end tag at the end of this perf table
+  for(i = 0; i < bios->perf_entries; i++)
   {
+    bios->perf_lst[i].active = 1; // TODO: determine if all entries are active on nv30
     bios->perf_lst[i].nvclk =  (READ_INT(bios->rom, offset))/100;
 
     /* The list can contain multiple distinct memory clocks.
@@ -187,7 +189,44 @@ void read_nv30_performance_table(struct nvbios *bios, int offset)
     bios->perf_lst[i].fanspeed = (float)bios->rom[offset + 54];
     bios->perf_lst[i].voltage = (float)bios->rom[offset + 55]/100;
 
-    bios->perf_entries++;
+    offset += size;
+  }
+}
+
+void nv30_write_performance_table(struct nvbios *bios, int offset)
+{
+  short i;
+  u_char start;
+  u_char size;
+//  int tmp = 0;
+
+  /* read how far away the start is */
+  start = bios->rom[offset];
+  // !!! Warning this was a signed char *rom
+  bios->rom[offset+2] = bios->perf_entries;
+  size = bios->rom[offset + 3];
+
+  offset += start + 1;
+
+  for(i = 0; i < bios->perf_entries; i++)
+  {
+    *(int *)(bios->rom + offset) = WRITE_LE_INT(bios->perf_lst[i].nvclk * 100);
+
+    /* The list can contain multiple distinct memory clocks.
+    /  Later on the ramcfg register can tell which of the ones is the right one.
+    /  But for now assume the first one is correct. It doesn't matter much if the
+    /  clocks are a little lower/higher as we mainly use this to detect 3d clocks
+    /
+    /  Further the clock stored here is the 'real' memory frequency, the effective one
+    /  is twice as high. It doesn't seem to be the case for all bioses though. In some effective
+    /  and real speed entries existed but this might be patched dumps.
+    */
+    *(int *)(bios->rom + offset + 4) = WRITE_LE_INT(bios->perf_lst[i].memclk * 50);
+
+    /* Move behind the timing stuff to the fanspeed and voltage */
+    bios->rom[offset + 54] = bios->perf_lst[i].fanspeed;
+    bios->rom[offset + 55] = bios->perf_lst[i].voltage * 100;
+
     offset += size;
   }
 }
@@ -746,14 +785,20 @@ void write_string_table(struct nvbios *bios, int offset, int length)
 }
 
 // TODO: Either add functionality or remove support for this
-void nv5_parse(struct nvbios *bios, u_short nv_offset)
+void nv5_read(struct nvbios *bios, u_short nv_offset)
 {
   /* Go to the position containing the offset to the card name, it is 30 away from NV. */
   int offset = READ_SHORT(bios->rom, nv_offset + 30);
-  nv_read(bios, bios->str[0],offset);
+  nv_read(bios, bios->str[0], offset);
 }
 
-void nv30_parse(struct nvbios *bios, u_short nv_offset)
+void nv5_write(struct nvbios *bios, u_short nv_offset)
+{
+  int offset = READ_SHORT(bios->rom, nv_offset + 30);
+  nv_write(bios, bios->str[0], offset);
+}
+
+void nv30_read(struct nvbios *bios, u_short nv_offset)
 {
   u_short init_offset = 0;
   u_short perf_offset=0;
@@ -768,7 +813,25 @@ void nv30_parse(struct nvbios *bios, u_short nv_offset)
   read_voltage_table(bios, volt_offset);
 
   perf_offset = READ_SHORT(bios->rom, nv_offset + 0x94);
-  read_nv30_performance_table(bios, perf_offset);
+  nv30_read_performance_table(bios, perf_offset);
+}
+
+void nv30_write(struct nvbios *bios, u_short nv_offset)
+{
+  u_short init_offset = 0;
+  u_short perf_offset=0;
+  u_short volt_offset=0;
+
+  int offset = READ_SHORT(bios->rom, nv_offset + 30);
+  nv_write(bios, bios->str[0],offset);
+
+  init_offset = READ_SHORT(bios->rom, nv_offset + 0x4d);
+
+  volt_offset = READ_SHORT(bios->rom, nv_offset + 0x98);
+  write_voltage_table(bios, volt_offset);
+
+  perf_offset = READ_SHORT(bios->rom, nv_offset + 0x94);
+  nv30_write_performance_table(bios, perf_offset);
 }
 
 void read_bit_structure(struct nvbios *bios, u_int bit_offset)
@@ -1142,13 +1205,10 @@ int write_bios(struct nvbios *bios, const char *filename)
     int version = str_to_bios_version(bios->version[0]);
     *(u_int *)(bios->rom + nv_offset + 10) = WRITE_LE_INT(version);
 
-    printf("Undone\n");
-    return 0;
-    // TODO: implement all these writes
-    //if(get_gpu_arch(bios->device_id) & NV3X)
-    //  nv30_parse(bios, nv_offset);
-    //else
-    //  nv5_parse(bios, nv_offset);
+    if(get_gpu_arch(bios->device_id) & NV3X)
+      nv30_write(bios, nv_offset);
+    else
+      nv5_write(bios, nv_offset);
   }
 
   if(!verify_bios(bios))
@@ -1264,9 +1324,9 @@ void parse_bios(struct nvbios *bios)
     bios_version_to_str(bios->version[0], version);
 
     if(get_gpu_arch(bios->device_id) & NV3X)
-      nv30_parse(bios, nv_offset);
+      nv30_read(bios, nv_offset);
     else
-      nv5_parse(bios, nv_offset);
+      nv5_read(bios, nv_offset);
   }
 }
 
