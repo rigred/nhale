@@ -84,6 +84,8 @@ typedef struct {
   uint32_t arch; // Architecture NV10, NV15, NV20 ..; for internal use only as we don't list all architectures
   unsigned int reg_address;
   char *dev_name; // /dev/mem or /dev/nvidiaX
+  unsigned short device_id;
+  char adapter_name[64];
 
   volatile unsigned int *PDISPLAY; // NV50 display registers
   volatile unsigned int *PMC;
