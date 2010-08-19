@@ -47,23 +47,24 @@ int main(void)
   int i, num_cards;
   NVCard cards[MAX_CARDS];
   struct nvbios bios;
+  char filename[13];
 
   num_cards = probe_devices(cards);
 
-// TODO: fix mem leaks here
   for(i = 0; i < num_cards; i++)
   {
     nv_card = cards + i;
     map_mem(nv_card->dev_name);
 
-    if(!read_bios(&bios, NULL))
-      continue;
+    if(read_bios(&bios, NULL))
+    {
+      print_bios_info(&bios);
+      sprintf(filename, "dump%X.rom", i);
+      //set_speaker(&bios,0);
+      if(write_bios(&bios, filename))
+        printf("Bios outputted to file '%s'\n", filename);
+    }
 
-    print_bios_info(&bios);
-    set_speaker(&bios,0);
-
-    if(!write_bios(&bios, "out.rom"))
-      break;
     unmap_mem();
   }
 
