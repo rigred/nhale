@@ -75,8 +75,8 @@ struct nvbios
   unsigned short board_id;
   unsigned short device_id;
   unsigned char hierarchy_id;
-  unsigned char major;
-  unsigned char minor;
+  unsigned char major; // non-modifiable
+  unsigned char minor; // non-modifiable
   char build_date[9];
   char mod_date[9];
   char adapter_name[64];
@@ -98,53 +98,65 @@ struct nvbios
   unsigned short text_time;
 
 
-  short volt_entries;
-  short volt_mask;
+  unsigned short volt_entries;
+  short volt_mask; // non-modifiable
   struct voltage volt_lst[MAX_VOLT_LVLS];
 
-  short perf_entries;
+  unsigned short perf_entries;
   struct performance perf_lst[MAX_PERF_LVLS];
 
-  short pll_entries;
-  struct pll pll_lst[16];
+  unsigned short pll_entries; // non-displayable, non-modifiable
+  struct pll pll_lst[16];     // non-displayable, non-modifiable
 
-  struct sensor sensor_cfg;
+  struct sensor sensor_cfg;   // non-displayable, non-modifiable
 
   /* Cache the 'empty' PLLs, this is needed for PLL calculation */
-  unsigned int mpll;
-  unsigned int nvpll;
-  unsigned int spll;
+  unsigned int mpll;         // non-displayable, non-modifiable
+  unsigned int nvpll;        // non-displayable, non-modifiable
+  unsigned int spll;         // non-displayable, non-modifiable
 
-  unsigned int pipe_cfg; /* Used to cache the NV4x pipe_cfg register */
+  /* Used to cache the NV4x pipe_cfg register */
+  unsigned int pipe_cfg;     // non-displayable, non-modifiable
 };
 
-void nv_read(struct nvbios *, char *, unsigned short);
-void nv_read_masked_segment(struct nvbios *, char *, unsigned short, unsigned short, unsigned char);
+void nv_read(struct nvbios *, char *, u_short);
+void nv_write(struct nvbios *bios, char *, u_short);
+void nv_read_masked_segment(struct nvbios *, char *, u_short, u_short, u_char);
+void nv_write_masked_segment(struct nvbios *, char *, u_short, u_short, u_char);
 void bios_version_to_str(char *, int);
-void parse_nv30_performance_table(struct nvbios *, int);
+int str_to_bios_version(char *);
+void read_nv30_performance_table(struct nvbios *, int); //TODO: inverse
 void nv40_bios_version_to_str(struct nvbios *, char *, short);
-int bit_init_script_table_get_next_entry(struct nvbios *, int);
-void parse_bit_init_script_table(struct nvbios *, int, int);
-void parse_bit_performance_table(struct nvbios *, int);
-void parse_bit_pll_table(struct nvbios *, unsigned short);
-void parse_bit_temperature_table(struct nvbios *, int);
-void parse_voltage_table(struct nvbios *, int);
-void parse_string_table(struct nvbios *, int, int);
-void nv5_parse(struct nvbios *, unsigned short);
-void nv30_parse(struct nvbios *, unsigned short);
-void parse_bit_structure(struct nvbios *, unsigned int);
-unsigned int locate(struct nvbios *, char *, int);
-unsigned int locate_segment(struct nvbios *, unsigned char *, unsigned short, unsigned short);
-unsigned int locate_masked_segment(struct nvbios *, unsigned char *, unsigned char *, unsigned short, unsigned short);
-unsigned int get_rom_size(struct nvbios *);
+void nv40_str_to_bios_version(struct nvbios *, char *, short);
+void read_bit_performance_table(struct nvbios *, int);
+void write_bit_performance_table(struct nvbios *, int);
+void read_bit_temperature_table(struct nvbios *, int);
+void write_bit_temperature_table(struct nvbios *, int);
+void read_voltage_table(struct nvbios *, int);
+void write_voltage_table(struct nvbios *, int);
+void read_string_table(struct nvbios *, int, int);
+void write_string_table(struct nvbios *, int, int);
+void nv5_parse(struct nvbios *, u_short); //TODO: inverse
+void nv30_parse(struct nvbios *, u_short); //TODO: inverse
+void read_bit_structure(struct nvbios *, u_int);
+void write_bit_structure(struct nvbios *, u_int);
+u_int locate(struct nvbios *, char *, int);
+u_int locate_segment(struct nvbios *, u_char *, u_short, u_short);
+u_int locate_masked_segment(struct nvbios *, u_char *, u_char *, u_short, u_short);
+u_int get_rom_size(struct nvbios *);
 int verify_bios(struct nvbios *);
 int read_bios(struct nvbios *, const char *);
+int write_bios(struct nvbios *, const char *);
 int dump_bios(struct nvbios *, const char *);
+void parse_bios(struct nvbios *);
 int load_bios_file(struct nvbios *, const char *);
 int load_bios_pramin(struct nvbios *);
 int load_bios_prom(struct nvbios *);
-void parse_bios(struct nvbios *);
 void print_bios_info(struct nvbios *);
 void print_nested_func_names(int, const char *);
 int set_speaker(struct nvbios *, char);
-int disable_print(void);
+int disable_print(struct nvbios *, char);
+
+int bit_init_script_table_get_next_entry(struct nvbios *, int);
+void read_bit_init_script_table(struct nvbios *, int, int);
+void read_bit_pll_table(struct nvbios *, u_short);

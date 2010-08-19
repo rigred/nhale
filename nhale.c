@@ -25,15 +25,7 @@
 
 //hacker.c/developer.c to try test byte ptr's and call's?
 
-//memcmp, memcpy, memset
-//read_bios calls parse_bios which sets nvbios 'bios'
-//allow editing directly to struct bios members
-//now copy nvbios 'bios' dump to nvbios 'bios_cpy'
-//call parse_bios which sets nvbios 'bios'
-//compare the two structs
-
 //NOTICE, NOTE, FIXME, TODO
-//TODO: Support big endian. Locate needs reworking, uint16/32_t_swap on struct headers
 //TODO: Use uintn_t's where necessary.
 //TODO: Try to access PCI BIOS on my machine?
 //TODO: Look at xf86 qt 7.6 (or 7.4?) mouse cursor lag issue?
@@ -42,7 +34,6 @@
 //TODO: read EEPROM ID and map to name; chip is SPI, use spi (write) to probe
 //TODO: Assert NV_PROM_SIZE <= Physical EEPROM size
 //TODO: Use CRC for verification on PRAMIN and PROM dumps
-//TODO: Reincorporate checksum in verification and add var in case user wishes to ignore checksum check (for file read)
 //TODO: Determine memory manufacturer?
 //TODO: make a g_debug_print
 //TODO: expand bios caps to indicate what values the bios has
@@ -59,6 +50,7 @@ int main(void)
 
   num_cards = probe_devices(cards);
 
+// TODO: fix mem leaks here
   for(i = 0; i < num_cards; i++)
   {
     nv_card = cards + i;
@@ -68,10 +60,12 @@ int main(void)
       continue;
 
     print_bios_info(&bios);
-    set_speaker(&bios,1);
+    set_speaker(&bios,0);
+
+    if(!write_bios(&bios, "out.rom"))
+      break;
     unmap_mem();
   }
 
-  dump_bios(&bios, "out.rom");
   return 0;
 }
