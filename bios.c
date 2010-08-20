@@ -59,6 +59,9 @@
 // NOTE: Whenever an index is found we should probably check for out of bounds cases before parsing values after it
 // TODO: Do pre-6 series parsing and Fermi parsing
 
+// defined in nhale.c
+extern int verbose;
+
 enum
 {
   DELTA_CLK = (1 << 0),
@@ -71,8 +74,6 @@ enum
   THRTL_THLD_1 = (1 << 7),
   THRTL_THLD_2 = (1 << 8)
 };
-
-enum { VERBOSE = 1 };
 
 struct BitTableHeader
 {
@@ -486,7 +487,7 @@ void read_bit_temperature_table(struct nvbios *bios, int offset)
       case 0x4: //this appears to be critical threshold
         if(bios->caps & CRTCL_THLD_2)
         {
-          if(VERBOSE)printf("Unknown critical temperature threshold\n");
+          if(verbose)printf("Unknown critical temperature threshold\n");
         }
         else if(bios->caps & CRTCL_THLD_1)
         {
@@ -502,7 +503,7 @@ void read_bit_temperature_table(struct nvbios *bios, int offset)
       case 0x5:   //this appears to be throttling threshold (permanent?)
         if(bios->caps & THRTL_THLD_2)
         {
-          if(VERBOSE)printf("Unknown throttle temperature threshold\n");
+          if(verbose)printf("Unknown throttle temperature threshold\n");
         }
         else if(bios->caps & THRTL_THLD_1)
         {
@@ -520,7 +521,7 @@ void read_bit_temperature_table(struct nvbios *bios, int offset)
       case 0x8:   //this appears to be fan boost threshold
         if(bios->caps & FNBST_THLD_2)
         {
-          if(VERBOSE)printf("Unknown fanboost temperature threshold\n");
+          if(verbose)printf("Unknown fanboost temperature threshold\n");
         }
         else if(bios->caps & FNBST_THLD_1)
         {
@@ -595,7 +596,7 @@ void write_bit_temperature_table(struct nvbios *bios, int offset)
         }
         else
         {
-          if(VERBOSE)printf("Unknown fanboost temperature threshold\n");
+          if(verbose)printf("Unknown fanboost temperature threshold\n");
         }
         break;
       case 0x5:   //this appears to be throttling threshold (permanent?)
@@ -611,7 +612,7 @@ void write_bit_temperature_table(struct nvbios *bios, int offset)
         }
         else
         {
-          if(VERBOSE)printf("Unknown fanboost temperature threshold\n");
+          if(verbose)printf("Unknown fanboost temperature threshold\n");
         }
         break;
       case 0x6:   // what is this? Temporary throttle threshold?
@@ -629,7 +630,7 @@ void write_bit_temperature_table(struct nvbios *bios, int offset)
         }
         else
         {
-          if(VERBOSE)printf("Unknown fanboost temperature threshold\n");
+          if(verbose)printf("Unknown fanboost temperature threshold\n");
         }
         break;
     }
@@ -857,8 +858,8 @@ void read_bit_structure(struct nvbios *bios, u_int bit_offset)
     unknown_entry = ' ';
     switch (entry->id[0])
     {
-      case 0: //bit table version
-        if(VERBOSE)
+      case 0  : //bit table version
+        if(verbose)
         {
           if(entry_length == 0x060C)
             printf("BIT table version : %X.%X%02X\n", (entry_offset & 0x00F0) >> 4, entry_offset & 0x000F, (entry_offset & 0xFF00) >> 8);
@@ -942,8 +943,8 @@ void write_bit_structure(struct nvbios *bios, u_int bit_offset)
 
     switch (entry->id[0])
     {
-      case 0: //bit table version
-        if(VERBOSE)
+      case 0  : //bit table version
+        if(verbose)
         {
           if(entry_length != 0x060C)
             printf("Unknown BIT table\n");
@@ -1040,17 +1041,19 @@ u_int get_rom_size(struct nvbios *bios)
 #if DEBUG
 
 NVCard *nv_card;
+int verbose = 1;
 
 int main(int argc, char **argv)
 {
   struct nvbios bios, bios_cpy;
 
-  if(read_bios(&bios, "bios.rom"))
-    print_bios_info(&bios);
+  if(!read_bios(&bios, "bios.rom"))
+    return -1;
+  print_bios_info(&bios);
   bios_cpy = bios;
-  write_bios(&bios, NULL);
+  write_bios(&bios, NULL); // This prints an error when dumping but ignore it
   if(memcmp(&bios, &bios_cpy, sizeof(struct nvbios)))
-    printf("Write bios error");
+    printf("Write bios error (major error)");
   return 0;
 }
 
@@ -1138,7 +1141,8 @@ int verify_bios(struct nvbios *bios)
 
 int read_bios(struct nvbios *bios, const char *filename)
 {
-  if(VERBOSE)print_nested_func_names(3, __func__);
+  if(verbose)
+    printf("------------------------------------\n%s\n------------------------------------\n", __func__);
   memset(bios, 0, sizeof(struct nvbios));
 
   // TODO: Compare opcodes/data in pramin roms to see what has changed
@@ -1172,7 +1176,8 @@ int read_bios(struct nvbios *bios, const char *filename)
 
 int write_bios(struct nvbios *bios, const char *filename)
 {
-  if(VERBOSE)print_nested_func_names(3, __func__);
+  if(verbose)
+    printf("------------------------------------\n%s\n------------------------------------\n", __func__);
 
   u_short bit_offset;
   u_short nv_offset;
@@ -1222,6 +1227,7 @@ int write_bios(struct nvbios *bios, const char *filename)
   bios_cpy.checksum = bios->checksum;
   bios_cpy.crc = bios->crc;
   bios_cpy.fake_crc = bios->fake_crc;
+  bios_cpy.no_correct_checksum = bios->no_correct_checksum;
 
   parse_bios(&bios_cpy);
 
@@ -1239,8 +1245,6 @@ int dump_bios(struct nvbios *bios, const char *filename)
   FILE *fp = NULL;
   u_int i;
 
-  if(VERBOSE)print_nested_func_names(2, __func__);
-
   //  NOTE: nvflash lets you flash the 64K Pramin with invalid checksum*
 
   fp = fopen(filename, "w+");
@@ -1256,7 +1260,7 @@ int dump_bios(struct nvbios *bios, const char *filename)
 
   if(!bios->no_correct_checksum)
   {
-    if(VERBOSE)
+    if(verbose)
       if(bios->checksum)
         printf("Correcting checksum\n");
     bios->rom[bios->rom_size - 1] = bios->rom[bios->rom_size - 1] - bios->checksum;
@@ -1266,6 +1270,8 @@ int dump_bios(struct nvbios *bios, const char *filename)
     fprintf(fp, "%c", bios->rom[i]);
   fclose(fp);
 
+  if(verbose)
+    printf("Bios outputted to file '%s'\n", filename);
   return 1;
 }
 
@@ -1276,8 +1282,6 @@ void parse_bios(struct nvbios *bios)
   u_short pcir_offset;
 
   // Does pcir_offset + 20 == 1 indicate BMP?
-
-  if(VERBOSE)print_nested_func_names(2, __func__);
 
   bios->subven_id = READ_SHORT(bios->rom, 0x54);
   bios->subsys_id = READ_SHORT(bios->rom, 0x56);
@@ -1338,8 +1342,6 @@ int load_bios_file(struct nvbios *bios, const char* filename)
   struct stat stbuf;
   u_int size, proj_file_size;
 
-  if(VERBOSE)print_nested_func_names(2, __func__);
-
   stat(filename, &stbuf);
   size = stbuf.st_size;
 
@@ -1386,8 +1388,6 @@ int load_bios_pramin(struct nvbios *bios)
 {
   u_char *rom;
   uint32_t old_bar0_pramin = 0;
-
-  if(VERBOSE)print_nested_func_names(2, __func__);
 
   /* Don't use this on unknown cards because we don't know if it needs PRAMIN fixups. */
   if(!nv_card->arch)
@@ -1436,8 +1436,6 @@ int load_bios_prom(struct nvbios *bios)
   enum { STABLE_COUNT = 7 };
   u_int max_delay = STABLE_COUNT;
 
-  if(VERBOSE)print_nested_func_names(2, __func__);
-
   /* enable bios parsing; on some boards the display might turn off */
   nv_card->PMC[0x1850/4] = 0x0;
 
@@ -1460,7 +1458,7 @@ int load_bios_prom(struct nvbios *bios)
     if(delay > max_delay)max_delay = delay;
   }
 
-  if(VERBOSE)printf("This EEPROM probably requires %d delays\n", max_delay - STABLE_COUNT);
+  if(verbose)printf("This EEPROM probably requires %d delays\n", max_delay - STABLE_COUNT);
 
   /* disable the rom; if we don't do it the screens stays black on some cards */
   nv_card->PMC[0x1850/4] = 0x1;
@@ -1581,20 +1579,6 @@ void print_bios_info(struct nvbios *bios)
   printf("\n");
 }
 
-void print_nested_func_names(int level, const char *name)
-{
-  int i;
-  for(i = 0; i < level; i++)
-    printf("------------");
-
-  printf("\n%s\n", name);
-
-  for(i = 0; i < level; i++)
-    printf("------------");
-
-  printf("\n");
-}
-
 // Disable/Enable PCM motherboard speaker access
 // Disable: state = 0 ; Enable; state = 1
 int set_speaker(struct nvbios *bios, char state)
@@ -1654,7 +1638,7 @@ int set_speaker(struct nvbios *bios, char state)
     bios->rom[first_offset+2] &= 0xFC;
   }
 
-  if(VERBOSE)printf(" + ROM EDIT : Successfully %s speaker\n", state ? "enabled" : "disabled");
+  if(verbose)printf(" + ROM EDIT : Successfully %s speaker\n", state ? "enabled" : "disabled");
 
   return 1;
 }
