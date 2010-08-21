@@ -34,15 +34,15 @@
 #include "bios.h"
 #include "info.h"
 #include "crc32.h"
+#include "config.h"
 
 //#define READ_SHORT(rom,offset) (*(u_short *)(rom + offset))
 //#define READ_INT(rom, offset) (*(u_int *)(rom + offset))
 
 #define READ_BYTE(rom, offset)  (rom[offset]&0xff)
 
-
-// This file still does not support big endian
-#ifndef N_BIG_ENDIAN
+// This file should now support big endian (imported from config.h)
+#ifndef NHALE_BIG_ENDIAN
   #define READ_SHORT(rom, offset) (READ_BYTE(rom, offset+1) << 8   | READ_BYTE(rom, offset))
   #define READ_INT(rom, offset)   (READ_SHORT(rom, offset+2) << 16 | READ_SHORT(rom, offset))
   #define WRITE_LE_SHORT(data)    (data)
@@ -58,9 +58,6 @@
 
 // NOTE: Whenever an index is found we should probably check for out of bounds cases before parsing values after it
 // TODO: Do pre-6 series parsing and Fermi parsing
-
-// defined in nhale.c
-extern int verbose;
 
 enum
 {
@@ -487,7 +484,7 @@ void read_bit_temperature_table(struct nvbios *bios, int offset)
       case 0x4: //this appears to be critical threshold
         if(bios->caps & CRTCL_THLD_2)
         {
-          if(verbose)printf("Unknown critical temperature threshold\n");
+          if(bios->verbose)printf("Unknown critical temperature threshold\n");
         }
         else if(bios->caps & CRTCL_THLD_1)
         {
@@ -503,7 +500,7 @@ void read_bit_temperature_table(struct nvbios *bios, int offset)
       case 0x5:   //this appears to be throttling threshold (permanent?)
         if(bios->caps & THRTL_THLD_2)
         {
-          if(verbose)printf("Unknown throttle temperature threshold\n");
+          if(bios->verbose)printf("Unknown throttle temperature threshold\n");
         }
         else if(bios->caps & THRTL_THLD_1)
         {
@@ -521,7 +518,7 @@ void read_bit_temperature_table(struct nvbios *bios, int offset)
       case 0x8:   //this appears to be fan boost threshold
         if(bios->caps & FNBST_THLD_2)
         {
-          if(verbose)printf("Unknown fanboost temperature threshold\n");
+          if(bios->verbose)printf("Unknown fanboost temperature threshold\n");
         }
         else if(bios->caps & FNBST_THLD_1)
         {
@@ -596,7 +593,7 @@ void write_bit_temperature_table(struct nvbios *bios, int offset)
         }
         else
         {
-          if(verbose)printf("Unknown fanboost temperature threshold\n");
+          if(bios->verbose)printf("Unknown fanboost temperature threshold\n");
         }
         break;
       case 0x5:   //this appears to be throttling threshold (permanent?)
@@ -612,7 +609,7 @@ void write_bit_temperature_table(struct nvbios *bios, int offset)
         }
         else
         {
-          if(verbose)printf("Unknown fanboost temperature threshold\n");
+          if(bios->verbose)printf("Unknown fanboost temperature threshold\n");
         }
         break;
       case 0x6:   // what is this? Temporary throttle threshold?
@@ -630,7 +627,7 @@ void write_bit_temperature_table(struct nvbios *bios, int offset)
         }
         else
         {
-          if(verbose)printf("Unknown fanboost temperature threshold\n");
+          if(bios->verbose)printf("Unknown fanboost temperature threshold\n");
         }
         break;
     }
@@ -859,7 +856,7 @@ void read_bit_structure(struct nvbios *bios, u_int bit_offset)
     switch (entry->id[0])
     {
       case 0  : //bit table version
-        if(verbose)
+        if(bios->verbose)
         {
           if(entry_length == 0x060C)
             printf("BIT table version : %X.%X%02X\n", (entry_offset & 0x00F0) >> 4, entry_offset & 0x000F, (entry_offset & 0xFF00) >> 8);
@@ -944,7 +941,7 @@ void write_bit_structure(struct nvbios *bios, u_int bit_offset)
     switch (entry->id[0])
     {
       case 0  : //bit table version
-        if(verbose)
+        if(bios->verbose)
         {
           if(entry_length != 0x060C)
             printf("Unknown BIT table\n");
@@ -1041,11 +1038,13 @@ u_int get_rom_size(struct nvbios *bios)
 #if DEBUG
 
 NVCard *nv_card;
-int verbose = 1;
 
 int main(int argc, char **argv)
 {
   struct nvbios bios, bios_cpy;
+  memset(&bios, 0, sizeof(struct nvbios));
+  memset(&bios_cpy, 0, sizeof(struct nvbios));
+  bios->verbose = 1;
 
   if(!read_bios(&bios, "bios.rom"))
     return -1;
@@ -1141,9 +1140,11 @@ int verify_bios(struct nvbios *bios)
 
 int read_bios(struct nvbios *bios, const char *filename)
 {
-  if(verbose)
+  int (*load_bios[2])(struct nvbios *) = { &load_bios_prom, &load_bios_pramin };
+  int i = bios->pramin_priority;
+
+  if(bios->verbose)
     printf("------------------------------------\n%s\n------------------------------------\n", __func__);
-  memset(bios, 0, sizeof(struct nvbios));
 
   // TODO: Compare opcodes/data in pramin roms to see what has changed
   // Loading from ROM might fail on laptops as sometimes GPU BIOS is hidden in the System BIOS?
@@ -1159,9 +1160,9 @@ int read_bios(struct nvbios *bios, const char *filename)
   }
   else
   {
-    if(!load_bios_prom(bios))
+    if(!(*load_bios[i])(bios))
     {
-      if(!load_bios_pramin(bios))
+      if(!(*load_bios[1 - i])(bios))
       {
         printf("Error: Unable to shadow the video bios from PROM or PRAMIN\n");
         return 0;
@@ -1176,7 +1177,7 @@ int read_bios(struct nvbios *bios, const char *filename)
 
 int write_bios(struct nvbios *bios, const char *filename)
 {
-  if(verbose)
+  if(bios->verbose)
     printf("------------------------------------\n%s\n------------------------------------\n", __func__);
 
   u_short bit_offset;
@@ -1228,6 +1229,8 @@ int write_bios(struct nvbios *bios, const char *filename)
   bios_cpy.crc = bios->crc;
   bios_cpy.fake_crc = bios->fake_crc;
   bios_cpy.no_correct_checksum = bios->no_correct_checksum;
+  bios_cpy.verbose = bios->verbose;
+  bios_cpy.pramin_priority = bios->pramin_priority;
 
   parse_bios(&bios_cpy);
 
@@ -1260,7 +1263,7 @@ int dump_bios(struct nvbios *bios, const char *filename)
 
   if(!bios->no_correct_checksum)
   {
-    if(verbose)
+    if(bios->verbose)
       if(bios->checksum)
         printf("Correcting checksum\n");
     bios->rom[bios->rom_size - 1] = bios->rom[bios->rom_size - 1] - bios->checksum;
@@ -1270,7 +1273,7 @@ int dump_bios(struct nvbios *bios, const char *filename)
     fprintf(fp, "%c", bios->rom[i]);
   fclose(fp);
 
-  if(verbose)
+  if(bios->verbose)
     printf("Bios outputted to file '%s'\n", filename);
   return 1;
 }
@@ -1458,7 +1461,7 @@ int load_bios_prom(struct nvbios *bios)
     if(delay > max_delay)max_delay = delay;
   }
 
-  if(verbose)printf("This EEPROM probably requires %d delays\n", max_delay - STABLE_COUNT);
+  if(bios->verbose)printf("This EEPROM probably requires %d delays\n", max_delay - STABLE_COUNT);
 
   /* disable the rom; if we don't do it the screens stays black on some cards */
   nv_card->PMC[0x1850/4] = 0x1;
@@ -1638,7 +1641,7 @@ int set_speaker(struct nvbios *bios, char state)
     bios->rom[first_offset+2] &= 0xFC;
   }
 
-  if(verbose)printf(" + ROM EDIT : Successfully %s speaker\n", state ? "enabled" : "disabled");
+  if(bios->verbose)printf(" + ROM EDIT : Successfully %s speaker\n", state ? "enabled" : "disabled");
 
   return 1;
 }
