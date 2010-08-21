@@ -69,6 +69,10 @@ struct nvbios
   unsigned char checksum;
   unsigned int crc;
   unsigned int fake_crc;  //TODO: remove this
+  short caps;
+  char no_correct_checksum; //do not correct the checksum on file save
+  char verbose;
+  char pramin_priority;
 
   unsigned short subven_id;
   unsigned short subsys_id;
@@ -83,9 +87,6 @@ struct nvbios
   char vendor_name[64];
   char str[8][256];
   char version[2][20];
-
-  short caps;
-  char no_correct_checksum; //do not correct the checksum on file save
 
   short temp_correction; //seems like this should be signed
   unsigned short fnbst_int_thld;
