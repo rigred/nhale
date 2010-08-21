@@ -61,15 +61,12 @@
 
 enum
 {
-  DELTA_CLK = (1 << 0),
-  SHADER_CLK = (1 << 1),
-  LOCK = (1 << 2),
-  FNBST_THLD_1 = (1 << 3),
-  FNBST_THLD_2 = (1 << 4),
-  CRTCL_THLD_1 = (1 << 5),
-  CRTCL_THLD_2 = (1 << 6),
-  THRTL_THLD_1 = (1 << 7),
-  THRTL_THLD_2 = (1 << 8)
+  FNBST_THLD_1 = (1 << 0),
+  FNBST_THLD_2 = (1 << 1),
+  CRTCL_THLD_1 = (1 << 2),
+  CRTCL_THLD_2 = (1 << 3),
+  THRTL_THLD_1 = (1 << 4),
+  THRTL_THLD_2 = (1 << 5)
 };
 
 struct BitTableHeader
@@ -339,15 +336,16 @@ void read_bit_performance_table(struct nvbios *bios, int offset)
     bios->perf_lst[i].memclk = READ_SHORT(bios->rom, offset+memclk_offset);
 
     // !!! Warning this was signed char *
-    if(bios->caps & DELTA_CLK)
+    if(bios->arch & (NV47 | NV49))
       if(bios->rom[offset+delta_offset])
         bios->perf_lst[i].delta = bios->rom[offset+delta_offset+1]/bios->rom[offset+delta_offset];
     /* Geforce8 cards have a shader clock, further the memory clock is at a different offset as well */
-    bios->perf_lst[i].shaderclk = READ_SHORT(bios->rom, offset+shader_offset);
+    if(bios->arch & NV5X)
+      bios->perf_lst[i].shaderclk = READ_SHORT(bios->rom, offset+shader_offset);
  //   else
  //     bios->perf_lst[i].memclk *= 2;  //FIXME
 
-    if(bios->caps & LOCK)
+    if(bios->arch & NV4X)
       bios->perf_lst[i].lock = bios->rom[offset + lock_offset] & 0xF;
 
     i++;
@@ -432,16 +430,17 @@ void write_bit_performance_table(struct nvbios *bios, int offset)
 
     // !!! Warning this was signed char *
     // FIXME: need to figure out how to parse delta first
-    //if(bios->caps & DELTA_CLK)
+    //if(bios->arch & (NV47 | NV49))
     //  if(bios->rom[offset+delta_offset])
     //    bios->perf_lst[i].delta = bios->rom[offset+delta_offset+1]/bios->rom[offset+delta_offset];
 
     /* Geforce8 cards have a shader clock, further the memory clock is at a different offset as well */
-    *(u_short *)(bios->rom + offset + shader_offset) = WRITE_LE_SHORT(bios->perf_lst[i].shaderclk);
+    if(bios->arch & NV5X)
+      *(u_short *)(bios->rom + offset + shader_offset) = WRITE_LE_SHORT(bios->perf_lst[i].shaderclk);
  //   else
  //     bios->perf_lst[i].memclk *= 2;  //FIXME
 
-    if(bios->caps & LOCK)
+    if(bios->arch & NV4X)
       bios->rom[offset + lock_offset] |= bios->perf_lst[i].lock;
 
     i++;
@@ -728,7 +727,6 @@ void read_string_table(struct nvbios *bios, int offset, int length)
 {
   u_short off;
   u_char i, len;
-  int arch = get_gpu_arch(bios->device_id);
 
   if(length != 0x15)
   {
@@ -738,9 +736,9 @@ void read_string_table(struct nvbios *bios, int offset, int length)
 
   // Read the inverted Engineering Release string
   // The string is after the Copyright string on NV4X and after the VESA Rev on NV5X
-  if(arch & NV4X)
+  if(bios->arch & NV4X)
     off = READ_SHORT(bios->rom, offset + 0x06) + bios->rom[offset+0x08] + 0x1;
-  else if(arch & NV5X)
+  else if(bios->arch & NV5X)
     off = READ_SHORT(bios->rom, offset + 0x12) + bios->rom[offset+0x14];
 
   nv_read_masked_segment(bios, bios->str[7], off, 0x2E, 0xFF);
@@ -758,7 +756,6 @@ void write_string_table(struct nvbios *bios, int offset, int length)
 {
   u_short off;
   u_char i, len;
-  int arch = get_gpu_arch(bios->device_id);
 
   if(length != 0x15)
   {
@@ -766,9 +763,9 @@ void write_string_table(struct nvbios *bios, int offset, int length)
     return;
   }
 
-  if(arch & NV4X)
+  if(bios->arch & NV4X)
     off = READ_SHORT(bios->rom, offset + 0x06) + bios->rom[offset+0x08] + 0x1;
-  else if(arch & NV5X)
+  else if(bios->arch & NV5X)
     off = READ_SHORT(bios->rom, offset + 0x12) + bios->rom[offset+0x14];
 
   nv_write_masked_segment(bios, bios->str[7], off, 0x2E, 0xFF);
@@ -1044,7 +1041,7 @@ int main(int argc, char **argv)
   struct nvbios bios, bios_cpy;
   memset(&bios, 0, sizeof(struct nvbios));
   memset(&bios_cpy, 0, sizeof(struct nvbios));
-  bios->verbose = 1;
+  bios.verbose = 1;
 
   if(!read_bios(&bios, "bios.rom"))
     return -1;
@@ -1052,7 +1049,7 @@ int main(int argc, char **argv)
   bios_cpy = bios;
   write_bios(&bios, NULL); // This prints an error when dumping but ignore it
   if(memcmp(&bios, &bios_cpy, sizeof(struct nvbios)))
-    printf("Write bios error (major error)");
+    printf("Write bios error (major error)\n");
   return 0;
 }
 
@@ -1141,7 +1138,7 @@ int verify_bios(struct nvbios *bios)
 int read_bios(struct nvbios *bios, const char *filename)
 {
   int (*load_bios[2])(struct nvbios *) = { &load_bios_prom, &load_bios_pramin };
-  int i = bios->pramin_priority;
+  int i = bios->pramin_priority; //this is either 0 or 1
 
   if(bios->verbose)
     printf("------------------------------------\n%s\n------------------------------------\n", __func__);
@@ -1192,7 +1189,7 @@ int write_bios(struct nvbios *bios, const char *filename)
 
   *(u_short *)(bios->rom + pcir_offset + 6) = WRITE_LE_SHORT(bios->device_id);
 
-  if(get_gpu_arch(bios->device_id) & (NV4X | NV5X))
+  if(bios->arch & (NV4X | NV5X))
   {
 
     // For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards).
@@ -1211,7 +1208,7 @@ int write_bios(struct nvbios *bios, const char *filename)
     int version = str_to_bios_version(bios->version[0]);
     *(u_int *)(bios->rom + nv_offset + 10) = WRITE_LE_INT(version);
 
-    if(get_gpu_arch(bios->device_id) & NV3X)
+    if(bios->arch & NV3X)
       nv30_write(bios, nv_offset);
     else
       nv5_write(bios, nv_offset);
@@ -1284,6 +1281,8 @@ void parse_bios(struct nvbios *bios)
   u_short nv_offset;
   u_short pcir_offset;
 
+  bios->caps = 0;
+
   // Does pcir_offset + 20 == 1 indicate BMP?
 
   bios->subven_id = READ_SHORT(bios->rom, 0x54);
@@ -1294,18 +1293,12 @@ void parse_bios(struct nvbios *bios)
 
   bios->device_id = READ_SHORT(bios->rom, pcir_offset + 6);
   get_card_name(bios->device_id, bios->adapter_name);
+  bios->arch = get_gpu_arch(bios->device_id);
   get_vendor_name(bios->subven_id, bios->vendor_name);
 
-  if(get_gpu_arch(bios->device_id) & (NV4X | NV5X))
+  if(bios->arch & (NV4X | NV5X))
   {
-    bios->caps = 0;
 
-    if(get_gpu_arch(bios->device_id) & (NV47 | NV49))
-      bios->caps |= DELTA_CLK;
-    if(get_gpu_arch(bios->device_id) & NV5X)
-      bios->caps |= SHADER_CLK;
-    if(get_gpu_arch(bios->device_id) & NV4X)
-      bios->caps |= LOCK;
   /* For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards). */
     bit_offset = locate(bios, "BIT", 0);
 
@@ -1330,7 +1323,7 @@ void parse_bios(struct nvbios *bios)
     version = READ_INT(bios->rom, nv_offset + 10);
     bios_version_to_str(bios->version[0], version);
 
-    if(get_gpu_arch(bios->device_id) & NV3X)
+    if(bios->arch & NV3X)
       nv30_read(bios, nv_offset);
     else
       nv5_read(bios, nv_offset);
@@ -1491,7 +1484,7 @@ void print_bios_info(struct nvbios *bios)
   bios->crc = CRC(0, bios->rom, bios->rom_size);
   bios->fake_crc = CRC(0, bios->rom, NV_PROM_SIZE);
 
-  printf("Adapter           : %s\n", bios->adapter_name);
+  printf("\nAdapter           : %s\n", bios->adapter_name);
   printf("Subvendor         : %s\n", bios->vendor_name);
   printf("File size         : %u%s KB  (%u B)\n", bios->rom_size/1024, bios->rom_size%1024 ? ".5" : "", bios->rom_size);
   printf("Checksum-8        : %02X\n", bios->checksum);
@@ -1500,44 +1493,56 @@ void print_bios_info(struct nvbios *bios)
 //  printf("CRC32?            : %08X\n", ~bios->crc);
 //  printf("Fake CRC?         : %08X\n", ~bios->fake_crc);
   printf("Version [1]       : %s\n", bios->version[0]);
-  printf("Version [2]       : %s\n", bios->version[1]);
+
+  if(bios->arch & (NV4X | NV5X))
+    printf("Version [2]       : %s\n", bios->version[1]);
+
   printf("Device ID         : %04X\n", bios->device_id);
   printf("Subvendor ID      : %04X\n", bios->subven_id);
   printf("Subsystem ID      : %04X\n", bios->subsys_id);
-  printf("Board ID          : %04X\n", bios->board_id);
-  printf("Hierarchy ID      : ");
-  switch(bios->hierarchy_id)
+
+  if(bios->arch & (NV4X | NV5X))
   {
-    case 0:
-      printf("None\n");
-      break;
-    case 1:
-      printf("Normal Board\n");
-      break;
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-      printf("Switch Port %u\n", bios->hierarchy_id - 2);
-      break;
-    default:
-      printf("%X\n", bios->hierarchy_id);
+    printf("Board ID          : %04X\n", bios->board_id);
+    printf("Hierarchy ID      : ");
+    switch(bios->hierarchy_id)
+    {
+      case 0:
+        printf("None\n");
+        break;
+      case 1:
+        printf("Normal Board\n");
+        break;
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+        printf("Switch Port %u\n", bios->hierarchy_id - 2);
+        break;
+      default:
+        printf("%X\n", bios->hierarchy_id);
+    }
+    printf("Build Date        : %s\n", bios->build_date);
   }
-  printf("Build Date        : %s\n", bios->build_date);
+
   printf("Modification Date : %s\n", bios->mod_date);
   printf("Sign-on           : %s", bios->str[0]);
-  printf("Version           : %s", bios->str[1]);
-  printf("Copyright         : %s", bios->str[2]);
-  printf("OEM               : %s\n", bios->str[3]);
-  printf("VESA Vendor       : %s\n", bios->str[4]);
-  printf("VESA Name         : %s\n", bios->str[5]);
-  printf("VESA Revision     : %s\n", bios->str[6]);
-  printf("Release           : %s", bios->str[7]);
-  printf("Text time         : %u ms\n", bios->text_time);
+
+  if(bios->arch & (NV4X | NV5X))
+  {
+    printf("Version           : %s", bios->str[1]);
+    printf("Copyright         : %s", bios->str[2]);
+    printf("OEM               : %s\n", bios->str[3]);
+    printf("VESA Vendor       : %s\n", bios->str[4]);
+    printf("VESA Name         : %s\n", bios->str[5]);
+    printf("VESA Revision     : %s\n", bios->str[6]);
+    printf("Release           : %s", bios->str[7]);
+    printf("Text time         : %u ms\n", bios->text_time);
+  }
 
   printf("\n");
 
-  if(get_gpu_arch(bios->device_id) <= NV3X)
+  if(bios->arch <= NV3X)
     printf("BMP version: %x.%x\n", bios->major, bios->minor);
 
   //TODO: print delta
@@ -1545,16 +1550,16 @@ void print_bios_info(struct nvbios *bios)
   char shader_num[21], lock_nibble[8];
 
   if(bios->perf_entries)
-    printf("Perf lvl | Active |  Gpu Freq %s|  Mem Freq | Voltage | Fan  %s\n", bios->caps & SHADER_CLK ? "| Shad Freq " : "", bios->caps & LOCK ? "| Lock " : "");
+    printf("Perf lvl | Active |  Gpu Freq %s|  Mem Freq | Voltage | Fan  %s\n", bios->arch & NV5X ? "| Shad Freq " : "", bios->arch & NV4X ? "| Lock " : "");
 
   for(i = 0; i < bios->perf_entries; i++)
   {
       /* For now assume the first memory entry is the right one; should be fixed as some bioses contain various different entries */
     shader_num[0] = lock_nibble[0] = 0;
 
-    if(bios->caps & SHADER_CLK)
+    if(bios->arch & NV5X)
       sprintf(shader_num, " | %5u MHz", bios->perf_lst[i].shaderclk);
-    if(bios->caps & LOCK)
+    if(bios->arch & NV4X)
       sprintf(lock_nibble, " | %4X", bios->perf_lst[i].lock);
 
     printf("%8d |    %s | %5u MHz%s | %5u MHz | %1.2f V  | %3d%%%s\n", i, bios->perf_lst[i].active ? "Yes" : "No ", bios->perf_lst[i].nvclk, shader_num, bios->perf_lst[i].memclk, bios->perf_lst[i].voltage, bios->perf_lst[i].fanspeed, lock_nibble);

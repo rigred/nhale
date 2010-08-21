@@ -64,8 +64,8 @@ enum { MAX_PERF_LVLS = 0x4, MAX_VOLT_LVLS = MAX_PERF_LVLS };
 
 struct nvbios
 {
-  unsigned int rom_size; //rom_size could be NV_PROM_SIZE or less (multiple of 512 bits)
   unsigned char rom[NV_PROM_SIZE]; // raw data from bios
+  unsigned int rom_size; //rom_size could be NV_PROM_SIZE or less (multiple of 512 bits)
   unsigned char checksum;
   unsigned int crc;
   unsigned int fake_crc;  //TODO: remove this
@@ -73,6 +73,7 @@ struct nvbios
   char no_correct_checksum; //do not correct the checksum on file save
   char verbose;
   char pramin_priority;
+  uint32_t arch;
 
   unsigned short subven_id;
   unsigned short subsys_id;
