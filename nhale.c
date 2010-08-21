@@ -169,10 +169,12 @@ int main(int argc, char **argv)
 
   if(list_flag)
   {
+    printf("\nIndex\tDevice ID\tCard Name\n");
     for(i = 0; i < num_cards; i++)
     {
-      printf("%d\t%d\t%s\n", i, card_list[i].device_id, card_list[i].adapter_name);
+      printf("%02d\t%04X\t\t%s\n", i, card_list[i].device_id, card_list[i].adapter_name);
     }
+    printf("\n");
   }
 
   // Nothing left to do
