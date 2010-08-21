@@ -44,7 +44,6 @@
 //TODO: Make a log.c to log all tables for development
 
 NVCard *nv_card;
-int verbose;
 
 void usage(void)
 {
@@ -58,6 +57,7 @@ void usage(void)
   printf("   -i, --index <num>\t\tUse card at this index for all operations.\n\t\t\t\tFind indices with --list.\n");
   printf("   -n, --no-checksum\t\tDo not correct checksum on file save.\n");
   printf("   -p, --info\t\t\tPrint the rom information.\n");
+  printf("   -r, --ram\t\t\tAttempt to shadow bios from Video Ram (PRAMIN)\n\t\t\t\tbefore PROM.\n");
   printf("   -v, --verbose\t\tPrint verbose information.\n");
   printf("   -h, --help\t\t\tPrint this usage information.\n\n");
 }
@@ -71,15 +71,17 @@ void cleanup(char *a, char *b)
 int main(int argc, char **argv)
 {
   int c;
-  int i, num_cards;
+  unsigned int i;
   NVCard card_list[MAX_CARDS];
   struct nvbios bios;
   char *infile = NULL, *outfile = NULL;
-  int card_index = -1;
-  int ncc = 0;
+  unsigned int card_index = 0;
+  unsigned int num_cards = 0;
   static int list_flag = 0;
   int print_info = 0;
   int option_index = 0;  // getopt_long stores the option index here
+
+  memset(&bios, 0, sizeof(struct nvbios));  //FIXME?
 
   static struct option long_options[] =
   {
@@ -89,14 +91,15 @@ int main(int argc, char **argv)
     {"index",       required_argument, 0, 'i'},
     {"no-checksum", no_argument,       0, 'n'},
     {"info"       , no_argument,       0, 'p'},
+    {"ram"        , no_argument,       0, 'r'},
     {"verbose"    , no_argument,       0, 'v'},
     {"help"       , no_argument,       0, 'h'},
     {0, 0, 0, 0}
   };
 
-  while((c = getopt_long (argc, argv, "npvhl:s:i:", long_options, &option_index)) != -1)
+  while((c = getopt_long (argc, argv, "nprvhl:s:i:", long_options, &option_index)) != -1)
   {
-    switch (c)
+    switch(c)
     {
       case 0:
         break;
@@ -110,13 +113,16 @@ int main(int argc, char **argv)
         card_index = atoi(optarg);
         break;
       case 'n':
-        ncc = 1;
+        bios.no_correct_checksum = 1;
         break;
       case 'p':
         print_info = 1;
         break;
+      case 'r':
+        bios.pramin_priority = 1;
+        break;
       case 'v':
-        verbose = 1;
+        bios.verbose = 1;
         break;
       case 'h':
         usage();
@@ -127,17 +133,38 @@ int main(int argc, char **argv)
     }
   }
 
-  if (optind < argc)
+  if(optind < argc)
   {
     usage();
     return -1;
   }
 
   num_cards = probe_devices(card_list);
-  if(!infile && !num_cards)
+  if(!infile)
   {
-    printf("No Nvidia cards detected");
-    return -1;
+    switch(num_cards)
+    {
+      case 0:
+        printf("No Nvidia cards detected");
+        return -1;
+      case 1:
+        if(card_index)
+          printf("Only detected one card.  Overwriting user-specified index: %d\n", card_index);
+        card_index = 0;
+        break;
+      default:
+        if(!card_index)
+        {
+          printf("There are multiple Nvidia cards detected on this machine.\n");
+          printf("Please use -i or --index to specify which card to use for operations\n");
+          return -1;
+        }
+        if(card_index >= num_cards)
+        {
+          printf("Invalid index\n");
+          return -1;
+        }
+    }
   }
 
   if(list_flag)
@@ -148,19 +175,9 @@ int main(int argc, char **argv)
     }
   }
 
-  if(!infile && num_cards > 1 && card_index == -1)
-  {
-    printf("There are multiple Nvidia cards detected on this machine.\n");
-    printf("Please use -i or --index to specify which card to use for operations\n");
-    return -1;
-  }
-
   // Nothing left to do
   if(!outfile && !print_info)
     return 0;
-
-  if(num_cards == 1)
-    card_index = 0;
 
   nv_card = card_list + card_index;
   map_mem(nv_card->dev_name);
@@ -170,7 +187,6 @@ int main(int argc, char **argv)
     if(print_info)
       print_bios_info(&bios);
 
-    bios.no_correct_checksum = ncc;
     if(outfile)
       if(!write_bios(&bios, outfile))
         printf("Unable to create rom dump");
