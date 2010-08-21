@@ -17,7 +17,7 @@
  */
 
 int check_driver(void);
-int probe_devices(NVCard *);
+unsigned int probe_devices(NVCard *);
 int IsVideoCard(unsigned short);
 int32_t pciReadLong(unsigned short, long);
 int map_mem(const char *);

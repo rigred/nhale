@@ -82,7 +82,7 @@ int check_driver()
   return 0;
 }
 
-int probe_devices(NVCard *nvcard_list)
+unsigned int probe_devices(NVCard *nvcard_list)
 {
   int dev, irq, reg_addr, i=0;
   unsigned short devbusfn;
