@@ -81,6 +81,12 @@ int main(int argc, char **argv)
   int print_info = 0;
   int option_index = 0;  // getopt_long stores the option index here
 
+  if(argc == 1)
+  {
+    usage();
+    return 0;
+  }
+
   memset(&bios, 0, sizeof(struct nvbios));  //FIXME?
 
   static struct option long_options[] =
@@ -169,10 +175,10 @@ int main(int argc, char **argv)
 
   if(list_flag)
   {
-    printf("\nIndex\tDevice ID\tCard Name\n");
+    printf("\nIndex\t\tDevice ID\tAdapter Name\n");
     for(i = 0; i < num_cards; i++)
     {
-      printf("%02d\t%04X\t\t%s\n", i, card_list[i].device_id, card_list[i].adapter_name);
+      printf("%02d\t\t%04X\t\t%s\n", i, card_list[i].device_id, card_list[i].adapter_name);
     }
     printf("\n");
   }
