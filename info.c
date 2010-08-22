@@ -109,8 +109,10 @@ static const struct pci_ids ids[] =
   { 0x0302, "nVidia GeforceFX 5800" },
   { 0x0308, "nVidia QuadroFX 2000" },
   { 0x0309, "nVidia QuadroFX 1000" },
+  { 0x030a, " NVIDIA ICE FX 2000" },
   { 0x0311, "nVidia GeforceFX 5600 Ultra" },
   { 0x0312, "nVidia GeforceFX 5600" },
+  { 0x0313, " NVIDIA NV31" },
   { 0x0314, "nVidia GeforceFX 5600XT" },
   { 0x0316, "nVidia NV31" },
   { 0x0317, "nVidia NV31" },
@@ -122,12 +124,14 @@ static const struct pci_ids ids[] =
   { 0x031d, "NV31" },
   { 0x031e, "NV31GL" },
   { 0x031f, "NV31GL" },
+  { 0x0320, " NVIDIA GeForce FX 5200" },
   { 0x0321, "nVidia GeforceFX 5200 Ultra" },
   { 0x0322, "nVidia GeforceFX 5200" },
   { 0x0323, "nVidia GeforceFX 5200LE" },
   { 0x0324, "nVidia GeforceFX Go 5200" },
   { 0x0325, "nVidia GeforceFX Go 5250" },
   { 0x0326, "nVidia GeforceFX 5500" },
+  { 0x0327, " NVIDIA GeForce FX 5100" },
   { 0x0328, "nVidia GeForceFX Go5200 32M/64M" },
   { 0x0329, "nVidia GeForce FX 5200 (Mac)" },
   { 0x032a, "nVidia Quadro NVS 280 PCI" },
@@ -278,6 +282,7 @@ static const struct pci_ids ids[] =
   { 0x029d, "nVidia QuadroFX 3500" },
   { 0x029e, "nVidia QuadroFX 1500" },
   { 0x029f, "nVidia QuadroFX 4500 X2" },
+  { 0x038b, " NVIDIA GeForce 7650 GS" },
   { 0x0390, "nVidia Geforce 7650GS" },
   { 0x0391, "nVidia Geforce 7600GT" },
   { 0x0392, "nVidia Geforce 7600GS" },
@@ -353,6 +358,7 @@ static const struct pci_ids ids[] =
   { 0x040d, "nVidia QuadroFX 1600M" },
   { 0x040e, "nVidia QuadroFX 570" },
   { 0x040f, "nVidia QuadroFX 1700" },
+  { 0x0410, " NVIDIA GeForce GT 330" },
   { 0x0420, "nVidia Geforce 8400SE" },
   { 0x0421, "nVidia Geforce 8500GT" },
   { 0x0422, "nVidia Geforce 8400GS" },
@@ -365,6 +371,7 @@ static const struct pci_ids ids[] =
   { 0x0429, "nVidia Quadro NVS 140M" },
   { 0x042a, "nVidia Quadro NVS 130M" },
   { 0x042b, "nVidia Quadro NVS 135M" },
+  { 0x042c, " NVIDIA GeForce 9400 GT" },
   { 0x042d, "nVidia Quadro FX 360M" },
   { 0x042e, "nVidia Geforce 9300M G" },
   { 0x042f, "nVidia Quadro NVS 290" },
@@ -384,6 +391,11 @@ static const struct pci_ids ids[] =
   { 0x03dd, "nVidia MCP61" },
   { 0x03de, "nVidia MCP61" },
   { 0x03df, "nVidia MCP61" },
+  { 0x0530, " NVIDIA GeForce 7190M / nForce 650M" },
+  { 0x0531, " NVIDIA GeForce 7150M / nForce 630M" },
+  { 0x0532, " NVIDIA MCP67M" },
+  { 0x0533, " NVIDIA GeForce 7000M / nForce 610M" },
+  { 0x053f, " NVIDIA MCP67M" },
   { 0x053a, "nVidia Geforce 7050PV nForce 630a"},
   { 0x053b, "nVidia Geforce 7050PV nForce 630a"},
   { 0x053e, "nVidia Geforce 7025 nForce 630a"},
@@ -481,6 +493,38 @@ static const struct pci_ids ids[] =
   { 0x06fd, "nVidia Quadro NVS 295" },
   { 0x06fe, "nVidia G98" },
   { 0x06ff, "nVidia G98-GL" },
+  { 0x07e0, " NVIDIA GeForce 7150 / NVIDIA nForce 630i" },
+  { 0x07e1, " NVIDIA GeForce 7100 / NVIDIA nForce 630i" },
+  { 0x07e2, " NVIDIA GeForce 7050 / NVIDIA nForce 630i" },
+  { 0x07e3, " NVIDIA GeForce 7050 / NVIDIA nForce 610i" },
+  { 0x07e4, " NVIDIA MCP73" },
+  { 0x07e5, " NVIDIA GeForce 7050 / NVIDIA nForce 620i" },
+  { 0x07e6, " NVIDIA MCP73" },
+  { 0x07e7, " NVIDIA MCP73" },
+  { 0x07e8, " NVIDIA MCP73" },
+  { 0x07e9, " NVIDIA MCP73" },
+  { 0x07ea, " NVIDIA MCP73" },
+  { 0x07eb, " NVIDIA MCP73" },
+  { 0x07ec, " NVIDIA MCP73" },
+  { 0x07ed, " NVIDIA MCP73" },
+  { 0x07ee, " NVIDIA MCP73" },
+  { 0x07ef, " NVIDIA MCP73" },
+  { 0x0850, " NVIDIA MCP77/78" },
+  { 0x0851, " NVIDIA MCP77/78" },
+  { 0x0852, " NVIDIA MCP77/78" },
+  { 0x0853, " NVIDIA MCP77/78" },
+  { 0x0854, " NVIDIA MCP77/78" },
+  { 0x0855, " NVIDIA MCP77/78" },
+  { 0x0856, " NVIDIA MCP77/78" },
+  { 0x0857, " NVIDIA MCP77/78" },
+  { 0x0858, " NVIDIA MCP77/78" },
+  { 0x0859, " NVIDIA MCP77/78" },
+  { 0x085a, " NVIDIA MCP77/78" },
+  { 0x085b, " NVIDIA MCP77/78" },
+  { 0x085c, " NVIDIA MCP77/78" },
+  { 0x085d, " NVIDIA MCP77/78" },
+  { 0x085e, " NVIDIA MCP77/78" },
+  { 0x085f, " NVIDIA MCP77/78" },
   { 0x0860, "nVidia Geforce 9300" },
   { 0x0861, "nVidia Geforce 9400" },
   { 0x0863, "nVidia Geforce 9400M" },
@@ -518,146 +562,158 @@ int get_gpu_arch(short device_id)
   int arch;
   switch(device_id & 0xff0)
   {
-    case 0x20:
+    case 0x0020:
       arch = NV5;
       break;
-    case 0x100:
-    case 0x110:
-    case 0x150:
-    case 0x1a0:
+    case 0x0100:
+    case 0x0110:
+    case 0x0150:
+    case 0x01a0:
       arch = NV10;
       break;
-    case 0x170:
-    case 0x180:
-    case 0x1f0:
+    case 0x0170:
+    case 0x0180:
+    case 0x01f0:
       arch = NV17;
       break;
-    case 0x200:
+    case 0x0200:
       arch = NV20;
       break;
-    case 0x250:
-    case 0x280:
+    case 0x0250:
+    case 0x0280:
       arch = NV25;
       break;
-    case 0x300:
-    case 0x320:  // MOVED: The FX5200/FX5500 FX cards are really NV34
+    case 0x0300:
+    case 0x0320:  // MOVED: The FX5200/FX5500 and FX5100 FX cards are really NV34
       arch = NV30;
       break;
-    case 0x330:
+    case 0x0330:
       arch = NV35; /* Similar to NV30 but fanspeed stuff works differently */
       break;
     /* Give a seperate arch to FX5600/FX5700 cards as they need different code than other FX cards */
-    case 0x310:
-    case 0x340:
+    case 0x0310:
+    case 0x0340:
       arch = NV31;
       break;
-    case 0x40:
-    case 0x120:
-    case 0x130:
-    case 0x210:
-    case 0x230:
+    case 0x0040:
+    case 0x0120:
+    case 0x0130:
+    case 0x0210:
+    case 0x0230:
       arch = NV40;
       break;
-    case 0xc0:
+    case 0x00c0:
       arch = NV41;
       break;
-    case 0x140:
+    case 0x0140:
       arch = NV43; /* Similar to NV40 but with different fanspeed code */
       break;
-    case 0x160:
-    case 0x220:
+    case 0x0160:
+    case 0x0220:
       arch = NV44;
       break;
-    case 0x1d0:
+    case 0x01d0:
       arch = NV46;
       break;
-    case 0x90:
+    case 0x0090:
       arch = NV47;
       break;
-    case 0x290:
+    case 0x0290:
       arch = NV49; /* 7900 */
       break;
-    case 0x390:
+    case 0x0380: // Added: 7650 GS G73
+    case 0x0390:
       arch = NV4B; /* 7600 */
       break;
-    case 0x190:
+    case 0x0190:
       arch = NV50; /* 8800 'NV50 / G80' */
       break;
-    case 0x400: /* 8600 'G84' */
+    case 0x0400: /* 8600 'G84' */
       arch = G84;
       break;
-    case 0x420: /* 8500 'G86' */
-      arch = G86;
-      break;
-    case 0x5e0: /* GT2x0 */
-    case 0x5f0: /* GT2x0 */
+    case 0x05e0: /* GT2x0 */
+    case 0x05f0: /* GT2x0 */
       arch = GT200;
       break;
-    case 0x6e0: /* G98 */
-    case 0x6f0: /* G98 */
-    case 0x860: /* C79 */
+    case 0x06e0: /* G98 */
+    case 0x06f0: /* G98 */
+    case 0x0850: // ? Added: MCP77/78 C77
+    case 0x0860: /* C79 */
       arch = G86;
       break;
-    case 0x600: /* G92 */
-    case 0x610: /* G92 */
+    case 0x0600: /* G92 */
+    case 0x0610: /* G92 */
+    case 0x0410: // Added: GT 330 rebranded two years later haha
       arch = G92;
       break;
-    case 0x620: /* 9600GT 'G94' */
+    case 0x0620: /* 9600GT 'G94' */
       arch = G94;
       break;
-    case 0x640: /* 9500GT */
+    case 0x0640: /* 9500GT */
       arch = G96;
       break;
-    case 0x240:
-    case 0x3d0: // SAME: both C51 and C61
-    case 0x530: /* not sure if the 70xx is C51 too */
+    case 0x0240:
+    case 0x03d0: // SAME: both C51 and C61
+    case 0x0530: /* not sure if the 70xx is C51 too */ // 7150M, 7190M, and MCP67M are C67
+    case 0x07e0: // ? Added: C73
       arch = C51;
       break;
-    case 0x4c0:
+    case 0x04c0:
       arch = G78; //die shrink 7300
-    case 0x2e0:
-    case 0xf0:
+    case 0x0420:
+      switch(device_id & 0xf)
+      {
+        case 0xc: // 9400 GT
+          arch = G96;
+          break;
+        default: /* 8500 'G86' */
+          arch = G86;
+          break;
+      }
+      break;
+    case 0x02e0:
+    case 0x00f0:
       /* The code above doesn't work for pci-express cards as multiple architectures share one id-range */
       switch(device_id)
       {
-        case 0xf0: /* 6800 */
-        case 0xf9: /* 6800Ultra */
+        case 0x00f0: /* 6800 */
+        case 0x00f9: /* 6800Ultra */
           arch = NV40;
           break;
-        case 0xf6: /* 6800GS/XT */
+        case 0x00f6: /* 6800GS/XT */
           arch = NV41;
           break;
-        case 0xf1: /* 6600/6600GT */
-        case 0xf2: /* 6600GT */
-        case 0xf3: /* 6200 */
-        case 0xf4: /* 6600LE */
+        case 0x00f1: /* 6600/6600GT */
+        case 0x00f2: /* 6600GT */
+        case 0x00f3: /* 6200 */
+        case 0x00f4: /* 6600LE */
           arch = NV43;
           break;
-        case 0xf5: /* 7800GS */
+        case 0x00f5: /* 7800GS */
           arch = NV47;
           break;
-        case 0xfa: /* PCX5700 */
+        case 0x00fa: /* PCX5700 */
           arch = NV31;
           break;
-        case 0xf8: /* QuadroFX 3400 */
-        case 0xfb: /* PCX5900 */
+        case 0x00f8: /* QuadroFX 3400 */
+        case 0x00fb: /* PCX5900 */
           arch = NV35;
           break;
-        case 0xfc: /* PCX5300 */
-        case 0xfd: /* Quadro NVS280/FX330, FX5200 based? */
-        case 0xff: /* PCX4300 */
+        case 0x00fc: /* PCX5300 */
+        case 0x00fd: /* Quadro NVS280/FX330, FX5200 based? */
+        case 0x00ff: /* PCX4300 */
           arch = NV25;
           break;
-        case 0xfe: /* Quadro 1300, has the same id as a FX3000 */
+        case 0x00fe: /* Quadro 1300, has the same id as a FX3000 */
           arch = NV35;
           break;
-        case 0x2e0: /* Geforce 7600GT AGP (at least Leadtek uses this id) */
-        case 0x2e1: /* Geforce 7600GS AGP (at least BFG uses this id) */
-        case 0x2e2: /* Geforce 7300GT AGP (at least a Galaxy 7300GT uses this id) */
+        case 0x02e0: /* Geforce 7600GT AGP (at least Leadtek uses this id) */
+        case 0x02e1: /* Geforce 7600GS AGP (at least BFG uses this id) */
+        case 0x02e2: /* Geforce 7300GT AGP (at least a Galaxy 7300GT uses this id) */
           arch = NV4B;
           break;
-        case 0x2e3: // ADDED: Geforce 7900 GS
-        case 0x2e4: /* Geforce 7950 GT AGP */
+        case 0x02e3: // ADDED: Geforce 7900 GS
+        case 0x02e4: /* Geforce 7950 GT AGP */
           arch = NV49;
           break;
       }
