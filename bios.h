@@ -71,6 +71,7 @@ struct nvbios
   unsigned int fake_crc;  //TODO: remove this
   short caps;
   char no_correct_checksum; //do not correct the checksum on file save
+  char force;
   char verbose;
   char pramin_priority;
   uint32_t arch;
@@ -123,6 +124,8 @@ struct nvbios
 
 void nv_read(struct nvbios *, char *, u_short);
 void nv_write(struct nvbios *bios, char *, u_short);
+void nv_read_segment(struct nvbios *bios, char *str, u_short offset, u_short len);
+void nv_write_segment(struct nvbios *bios, char *str, u_short offset, u_short len);
 void nv_read_masked_segment(struct nvbios *, char *, u_short, u_short, u_char);
 void nv_write_masked_segment(struct nvbios *, char *, u_short, u_short, u_char);
 void bios_version_to_str(char *, int);
