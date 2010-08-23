@@ -450,17 +450,83 @@ static const struct pci_ids ids[] =
   { 0x0610, "nVidia Geforce 9600GSO" },
   { 0x0611, "nVidia Geforce 8800GT" },
   { 0x0612, "nVidia Geforce 9800GTX" },
+  { 0x0613, " NVIDIA GeForce 9800 GTX+" },
   { 0x0614, "nVidia Geforce 9800GT" },
+  { 0x0615, " NVIDIA GeForce GTS 250" },
+  { 0x0616, " NVIDIA G92" },
+  { 0x0617, " NVIDIA GeForce 9800M GTX" },
+  { 0x0618, " NVIDIA GeForce GTX 260M" },
+  { 0x0619, " NVIDIA Quadro FX 4700 X2" },
   { 0x061a, "nVidia QuadroFX 3700" },
+  { 0x061b, " NVIDIA Quadro VX 200" },
   { 0x061c, "nVidia QuadroFX 3600M" },
+  { 0x061d, " NVIDIA Quadro FX 2800M" },
+  { 0x061e, " NVIDIA Quadro FX 3700M" },
+  { 0x061f, " NVIDIA Quadro FX 3800M" },
+  { 0x0620, " NVIDIA G94" },
+  { 0x0621, " NVIDIA GeForce GT 230" },
   { 0x0622, "nVidia Geforce 9600GT" },
   { 0x0623, "nVidia Geforce 9600GS" },
+  { 0x0624, " NVIDIA G94" },
+  { 0x0625, " NVIDIA GeForce 9600 GSO 512" },
+  { 0x0626, " NVIDIA GeForce GT 130" },
+  { 0x0627, " NVIDIA GeForce GT 140" },
+  { 0x0628, " NVIDIA GeForce 9800M GTS" },
+  { 0x0629, " NVIDIA G94" },
+  { 0x062a, " NVIDIA GeForce 9700M GTS" },
+  { 0x062b, " NVIDIA GeForce 9800M GS" },
+  { 0x062c, " NVIDIA GeForce 9800M GTS" },
+  { 0x062d, " NVIDIA GeForce 9600 GT" },
+  { 0x062e, " NVIDIA GeForce 9600 GT" },
+  { 0x062f, " NVIDIA GeForce 9800 S" },
+  { 0x0630, " NVIDIA GeForce 9700 S" },
+  { 0x0631, " NVIDIA GeForce GTS 160M" },
+  { 0x0632, " NVIDIA GeForce GTS 150M" },
+  { 0x0633, " NVIDIA GeForce GT 220" },
+  { 0x0634, " NVIDIA G94" },
+  { 0x0635, " NVIDIA GeForce 9600 GSO" },
+  { 0x0636, " NVIDIA G94" },
+  { 0x0637, " NVIDIA GeForce 9600 GT" },
+  { 0x0638, " NVIDIA Quadro FX 1800" },
+  { 0x0639, " NVIDIA G94" },
+  { 0x063a, " NVIDIA Quadro FX 2700M" },
+  { 0x063b, " NVIDIA G94" },
+  { 0x063c, " NVIDIA G94" },
+  { 0x063d, " NVIDIA G94" },
+  { 0x063e, " NVIDIA G94" },
+  { 0x063f, " NVIDIA G94" },
   { 0x0640, "nVidia Geforce 9500GT" },
+  { 0x0641, " NVIDIA GeForce 9400 GT" },
+  { 0x0642, " NVIDIA GeForce 8400 GS" },
   { 0x0643, "nVidia Geforce 9500GT" },
+  { 0x0644, " NVIDIA GeForce 9500 GS" },
+  { 0x0645, " NVIDIA GeForce 9500 GS" },
+  { 0x0646, " NVIDIA GeForce GT 120" },
   { 0x0647, "nVidia Geforce 9600M GT" },
   { 0x0648, "nVidia Geforce 9600M GS" },
   { 0x0649, "nVidia Geforce 9600M GT" },
+  { 0x064a, " NVIDIA GeForce 9700M GT" },
   { 0x064b, "nVidia Geforce 9500M G" },
+  { 0x064c, " NVIDIA GeForce 9650M GT" },
+  { 0x064d, " NVIDIA G96" },
+  { 0x064e, " NVIDIA G96" },
+  { 0x064f, " NVIDIA GeForce 9600 S" },
+  { 0x0650, " NVIDIA G96-825" },
+  { 0x0651, " NVIDIA GeForce G 110M" },
+  { 0x0652, " NVIDIA GeForce GT 130M" },
+  { 0x0653, " NVIDIA GeForce GT 120M" },
+  { 0x0654, " NVIDIA GeForce GT 220M" },
+  { 0x0655, " NVIDIA GeForce 9500 GS / GeForce 9600 S" },
+  { 0x0656, " NVIDIA GeForce 9500 GT / GeForce 9650 S" },
+  { 0x0657, " NVIDIA G96" },
+  { 0x0658, " NVIDIA Quadro FX 380" },
+  { 0x0659, " NVIDIA Quadro FX 580" },
+  { 0x065a, " NVIDIA Quadro FX 1700M" },
+  { 0x065b, " NVIDIA GeForce 9400 GT" },
+  { 0x065c, " NVIDIA Quadro FX 770M" },
+  { 0x065d, " NVIDIA G96" },
+  { 0x065e, " NVIDIA G96" },
+  { 0x065f, " NVIDIA GeForce G210" },
   { 0x06e0, "nVidia Geforce 9300GE" },
   { 0x06e1, "nVidia Geforce 9300GS" },
   { 0x06e2, "nVidia Geforce 8400" },
@@ -509,6 +575,19 @@ static const struct pci_ids ids[] =
   { 0x07ed, " NVIDIA MCP73" },
   { 0x07ee, " NVIDIA MCP73" },
   { 0x07ef, " NVIDIA MCP73" },
+  { 0x0840, " NVIDIA GeForce 8200M" },
+  { 0x0842, " NVIDIA MCP77/78" },
+  { 0x0844, " NVIDIA GeForce 9100M G" },
+  { 0x0845, " NVIDIA GeForce 8200M G / GeForce 8200M" },
+  { 0x0846, " NVIDIA GeForce 9200" },
+  { 0x0847, " NVIDIA GeForce 9100" },
+  { 0x0848, " NVIDIA GeForce 8300" },
+  { 0x0849, " NVIDIA GeForce 8200" },
+  { 0x084a, " NVIDIA nForce 730a" },
+  { 0x084b, " NVIDIA GeForce 8200 / GeForce 9200" },
+  { 0x084c, " NVIDIA nForce 980a/780a SLI" },
+  { 0x084d, " NVIDIA nForce 750a SLI" },
+  { 0x084f, " NVIDIA GeForce 8100 / nForce 720a" },
   { 0x0850, " NVIDIA MCP77/78" },
   { 0x0851, " NVIDIA MCP77/78" },
   { 0x0852, " NVIDIA MCP77/78" },
@@ -527,9 +606,80 @@ static const struct pci_ids ids[] =
   { 0x085f, " NVIDIA MCP77/78" },
   { 0x0860, "nVidia Geforce 9300" },
   { 0x0861, "nVidia Geforce 9400" },
+  { 0x0862, " NVIDIA GeForce 9400M G" },
   { 0x0863, "nVidia Geforce 9400M" },
   { 0x0864, "nVidia Geforce 9300" },
   { 0x0865, "nVidia Geforce 9300" },
+  { 0x0866, " NVIDIA GeForce 9400M G" },
+  { 0x0867, " NVIDIA GeForce 9400" },
+  { 0x0868, " NVIDIA nForce 760i SLI" },
+  { 0x0869, " NVIDIA GeForce 9400" },
+  { 0x086a, " NVIDIA GeForce 9400" },
+  { 0x086b, " NVIDIA MCP7A-U" },
+  { 0x086c, " NVIDIA GeForce 9300 / nForce 730i" },
+  { 0x086d, " NVIDIA GeForce 9200" },
+  { 0x086e, " NVIDIA GeForce 9100M G" },
+  { 0x086f, " NVIDIA GeForce 8200M G" },
+  { 0x0870, " NVIDIA GeForce 9400M" },
+  { 0x0871, " NVIDIA GeForce 9200" },
+  { 0x0872, " NVIDIA GeForce G102M" },
+  { 0x0873, " NVIDIA GeForce G102M" },
+  { 0x0874, " NVIDIA ION" },
+  { 0x0876, " NVIDIA ION" },
+  { 0x087a, " NVIDIA Quadro FX 470 / GeForce 9400" },
+  { 0x087b, " NVIDIA MCP7A-GL" },
+  { 0x087d, " NVIDIA ION" },
+  { 0x087e, " NVIDIA ION LE" },
+  { 0x087f, " NVIDIA ION LE" },
+
+  { 0x0a00, " NVIDIA GT212" },
+  { 0x0a10, " NVIDIA GT212" },
+  { 0x0a20, " NVIDIA GeForce GT 220" },
+  { 0x0a21, " NVIDIA D10M2-20" },
+  { 0x0a22, " NVIDIA GeForce 315" },
+  { 0x0a23, " NVIDIA GeForce 210" },
+  { 0x0a28, " NVIDIA GeForce GT 230M" },
+  { 0x0a29, " NVIDIA GeForce GT 330M" },
+  { 0x0a2a, " NVIDIA GeForce GT 230M" },
+  { 0x0a2b, " NVIDIA GeForce GT 330M" },
+  { 0x0a2c, " NVIDIA NVS 5100M" },
+  { 0x0a2d, " NVIDIA GeForce GT 320M" },
+  { 0x0a30, " NVIDIA GT216" },
+  { 0x0a34, " NVIDIA GeForce GT 240M" },
+  { 0x0a35, " NVIDIA GeForce GT 325M" },
+  { 0x0a3c, " NVIDIA Quadro FX 880M" },
+  { 0x0a3d, " NVIDIA N10P-ES" },
+  { 0x0a3f, " NVIDIA GT216-INT" },
+  { 0x0a60, " NVIDIA GeForce G210" },
+  { 0x0a61, " NVIDIA NVS 2100" },
+  { 0x0a62, " NVIDIA GeForce 205" },
+  { 0x0a63, " NVIDIA GeForce 310 / NVIDIA NVS 3100" },
+  { 0x0a63, " NVIDIA GeForce 310" },
+  { 0x0a64, " NVIDIA ION" },
+  { 0x0a65, " NVIDIA GeForce 210" },
+  { 0x0a66, " NVIDIA GeForce 310" },
+  { 0x0a67, " NVIDIA GeForce 315" },
+  { 0x0a68, " NVIDIA GeForce G105M" },
+  { 0x0a69, " NVIDIA GeForce G105M" },
+  { 0x0a6a, " NVIDIA NVS 2100M" },
+  { 0x0a6c, " NVIDIA NVS 3100M" },
+  { 0x0a6e, " NVIDIA GeForce 305M" },
+  { 0x0a6f, " NVIDIA ION" },
+  { 0x0a70, " NVIDIA GeForce 310M" },
+  { 0x0a72, " NVIDIA GeForce 310M" },
+  { 0x0a73, " NVIDIA GeForce 305M" },
+  { 0x0a74, " NVIDIA GeForce G210M" },
+  { 0x0a75, " NVIDIA GeForce 310M" },
+  { 0x0a76, " NVIDIA ION" },
+  { 0x0a78, " NVIDIA Quadro FX 380 LP" },
+  { 0x0a7c, " NVIDIA Quadro FX 380M" },
+  { 0x0a7d, " NVIDIA GT218-ES" },
+  { 0x0a7e, " NVIDIA GT218-INT-S" },
+  { 0x0a7f, " NVIDIA GT218-INT-B" },
+
+  { 0x06c0, " NVIDIA GeForce GTX 480" },
+  { 0x06c4, " NVIDIA GeForce GTX 465" },
+  { 0x06cd, " NVIDIA GeForce GTX 470" },
   { 0, NULL }
 };
 
@@ -633,12 +783,22 @@ int get_gpu_arch(short device_id)
       break;
     case 0x05e0: /* GT2x0 */
     case 0x05f0: /* GT2x0 */
+    case 0x06a0: // Added
+    case 0x06b0: // Added
+    case 0x0a00: // ? Added
+    case 0x0a10: // ? Added
+    case 0x0a20: // ? Added
+    case 0x0a30: // ? Added
+    case 0x0a60: // ? Added
+    case 0x0a70: // ? Added
       arch = GT200;
       break;
     case 0x06e0: /* G98 */
     case 0x06f0: /* G98 */
+    case 0x0840: // Added C77
     case 0x0850: // ? Added: MCP77/78 C77
     case 0x0860: /* C79 */
+    case 0x0870: // Added C79
       arch = G86;
       break;
     case 0x0600: /* G92 */
@@ -647,9 +807,11 @@ int get_gpu_arch(short device_id)
       arch = G92;
       break;
     case 0x0620: /* 9600GT 'G94' */
+    case 0x0630: // Added
       arch = G94;
       break;
     case 0x0640: /* 9500GT */
+    case 0x0650: // Added
       arch = G96;
       break;
     case 0x0240:
@@ -660,6 +822,7 @@ int get_gpu_arch(short device_id)
       break;
     case 0x04c0:
       arch = G78; //die shrink 7300
+      break;
     case 0x0420:
       switch(device_id & 0xf)
       {
@@ -670,6 +833,9 @@ int get_gpu_arch(short device_id)
           arch = G86;
           break;
       }
+      break;
+    case 0x06c0:
+      arch = GF100;
       break;
     case 0x02e0:
     case 0x00f0:
