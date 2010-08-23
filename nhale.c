@@ -58,6 +58,7 @@ void usage(void)
   printf("   -n, --no-checksum\t\tDo not correct checksum on file save.\n");
   printf("   -p, --info\t\t\tPrint the rom information.\n");
   printf("   -r, --ram\t\t\tAttempt to shadow bios from Video Ram (PRAMIN)\n\t\t\t\tbefore PROM.\n");
+  printf("   -f, --force\t\t\tForce bios writing to unsupported architectures\n");
   printf("   -v, --verbose\t\tPrint verbose information.\n");
   printf("   -h, --help\t\t\tPrint this usage information.\n\n");
 }
@@ -98,12 +99,13 @@ int main(int argc, char **argv)
     {"no-checksum", no_argument,       0, 'n'},
     {"info"       , no_argument,       0, 'p'},
     {"ram"        , no_argument,       0, 'r'},
+    {"force"      , no_argument,       0, 'f'},
     {"verbose"    , no_argument,       0, 'v'},
     {"help"       , no_argument,       0, 'h'},
     {0, 0, 0, 0}
   };
 
-  while((c = getopt_long (argc, argv, "nprvhl:s:i:", long_options, &option_index)) != -1)
+  while((c = getopt_long (argc, argv, "nprfvhl:s:i:", long_options, &option_index)) != -1)
   {
     switch(c)
     {
@@ -126,6 +128,9 @@ int main(int argc, char **argv)
         break;
       case 'r':
         bios.pramin_priority = 1;
+        break;
+      case 'f':
+        bios.force = 1;
         break;
       case 'v':
         bios.verbose = 1;
@@ -197,7 +202,7 @@ int main(int argc, char **argv)
 
     if(outfile)
       if(!write_bios(&bios, outfile))
-        printf("Unable to create rom dump");
+        printf("Unable to create rom dump\n");
   }
 
   unmap_mem();
