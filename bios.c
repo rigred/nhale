@@ -58,6 +58,11 @@
 
 // NOTE: Whenever an index is found we should probably check for out of bounds cases before parsing values after it
 // TODO: Do pre-6 series parsing and Fermi parsing
+// FIXME: ? I probably should only apply dividers when displaying data as not to lose any precision when I have to write the unedited values back.  However now this would be detected by the copy verification error in write_bios.  If complaints are filed I will have to change a few things.
+// FIXME: I should probably make sure nv_read doesnt read in something too big for the buffer.  Really I need to find out about old signon messages so I can remove nv_read altogether.
+// FIXME: Don't assume Nvidia always conforms to a logical format because they don't.
+
+// A key emphasis in this file is to use the newest parsing methods for unsupported architectures
 
 enum
 {
@@ -107,6 +112,21 @@ void nv_write(struct nvbios *bios, char *str, u_short offset)
 {
   u_short i;
   for(i = 0; bios->rom[offset+i]; i++)
+    bios->rom[offset+i] = str[i];
+}
+
+void nv_read_segment(struct nvbios *bios, char *str, u_short offset, u_short len)
+{
+  u_short i;
+  for(i = 0; i < len; i++)
+    str[i] = bios->rom[offset+i];
+  str[i] = 0;
+}
+
+void nv_write_segment(struct nvbios *bios, char *str, u_short offset, u_short len)
+{
+  u_short i;
+  for(i = 0; i < len; i++)
     bios->rom[offset+i] = str[i];
 }
 
@@ -181,7 +201,7 @@ void nv30_read_performance_table(struct nvbios *bios, int offset)
     bios->perf_lst[i].memclk =  (READ_INT(bios->rom, offset+4))/50;
 
     /* Move behind the timing stuff to the fanspeed and voltage */
-    bios->perf_lst[i].fanspeed = (float)bios->rom[offset + 54];
+    bios->perf_lst[i].fanspeed = bios->rom[offset + 54];
     bios->perf_lst[i].voltage = (float)bios->rom[offset + 55]/100;
 
     offset += size;
@@ -220,7 +240,8 @@ void nv30_write_performance_table(struct nvbios *bios, int offset)
 
     /* Move behind the timing stuff to the fanspeed and voltage */
     bios->rom[offset + 54] = bios->perf_lst[i].fanspeed;
-    bios->rom[offset + 55] = bios->perf_lst[i].voltage * 100;
+    float temp = bios->perf_lst[i].voltage * 100;
+    bios->rom[offset + 55] = temp;
 
     offset += size;
   }
@@ -273,6 +294,10 @@ void read_bit_performance_table(struct nvbios *bios, int offset)
 
   /* The first byte contains a version number; based on this we set offsets to interesting entries */
   // TODO: change this so default handles newer versions rather than older versions
+  // Are locks only important to 0x24 versions?
+  //printf("%X\n", header->version);
+
+  // Currently seen versions < 25: 0x24, 0x23, 0x21
   switch(header->version)
   {
     case 0x25: /* First seen on Geforce 8800GTS bioses */
@@ -330,7 +355,7 @@ void read_bit_performance_table(struct nvbios *bios, int offset)
 
     bios->perf_lst[i].active = (i < header->num_active_entries);
     bios->perf_lst[i].fanspeed = bios->rom[offset+fanspeed_offset];
-    bios->perf_lst[i].voltage = (float)bios->rom[offset+voltage_offset]/100;
+    bios->perf_lst[i].voltage = (float)bios->rom[offset+voltage_offset] / 100;
 
     bios->perf_lst[i].nvclk = READ_SHORT(bios->rom, offset+nvclk_offset);
     bios->perf_lst[i].memclk = READ_SHORT(bios->rom, offset+memclk_offset);
@@ -367,6 +392,7 @@ void write_bit_performance_table(struct nvbios *bios, int offset)
 
   /* The first byte contains a version number; based on this we set offsets to interesting entries */
   // TODO: change this so default handles newer versions rather than older versions
+
   switch(header->version)
   {
     case 0x25: /* First seen on Geforce 8800GTS bioses */
@@ -423,7 +449,8 @@ void write_bit_performance_table(struct nvbios *bios, int offset)
     }
 
     bios->rom[offset+fanspeed_offset] = bios->perf_lst[i].fanspeed;
-    bios->rom[offset+voltage_offset] = bios->perf_lst[i].voltage * 100;
+    float temp = bios->perf_lst[i].voltage * 100;
+    bios->rom[offset+voltage_offset] = temp;
 
     *(u_short *)(bios->rom + offset + nvclk_offset) = WRITE_LE_SHORT(bios->perf_lst[i].nvclk);
     *(u_short *)(bios->rom + offset + memclk_offset) = WRITE_LE_SHORT(bios->perf_lst[i].memclk);
@@ -717,7 +744,8 @@ void write_voltage_table(struct nvbios *bios, int offset)
       break;
     }
     /* The voltage is stored in multiples of 10mV, scale it to V */
-    bios->rom[offset] = bios->volt_lst[i].voltage * 100;
+    float temp = bios->volt_lst[i].voltage * 100;
+    bios->rom[offset] = temp;
     bios->rom[offset + 1] = bios->volt_lst[i].VID;
     offset += entry_size;
   }
@@ -747,7 +775,7 @@ void read_string_table(struct nvbios *bios, int offset, int length)
   {
     off = READ_SHORT(bios->rom, offset);
     len = bios->rom[offset + 2];
-    nv_read_masked_segment(bios, bios->str[i], off, len, 0x00);
+    nv_read_segment(bios, bios->str[i], off, len);
     offset += 3;
   }
 }
@@ -774,7 +802,7 @@ void write_string_table(struct nvbios *bios, int offset, int length)
   {
     off = READ_SHORT(bios->rom, offset);
     len = bios->rom[offset + 2];
-    nv_write_masked_segment(bios, bios->str[i], off, len, 0x00);
+    nv_write_segment(bios, bios->str[i], off, len);
     offset += 3;
   }
 }
@@ -889,7 +917,7 @@ void read_bit_structure(struct nvbios *bios, u_int bit_offset)
       case 'i': // bios version(2), bios build date, board id, hierarchy id
           nv40_bios_version_to_str(bios, bios->version[1], entry_offset);
           bios->board_id = READ_SHORT(bios->rom, entry_offset + 0xB);
-          nv_read(bios, bios->build_date,entry_offset + 0xF);
+          nv_read_segment(bios, bios->build_date,entry_offset + 0xF, 8);
           bios->hierarchy_id = bios->rom[entry_offset + 0x24];
         break;
       default:
@@ -972,7 +1000,7 @@ void write_bit_structure(struct nvbios *bios, u_int bit_offset)
       case 'i': // bios version(2), bios build date, board id, hierarchy id
           nv40_str_to_bios_version(bios, bios->version[1], entry_offset);
           *(u_short *)(bios->rom + entry_offset + 0xB) = WRITE_LE_SHORT(bios->board_id);
-          nv_write(bios, bios->build_date,entry_offset + 0xF);
+          nv_write_segment(bios, bios->build_date,entry_offset + 0xF, 8);
           bios->rom[entry_offset + 0x24] = bios->hierarchy_id;
         break;
     }
@@ -1049,7 +1077,7 @@ int main(int argc, char **argv)
   bios_cpy = bios;
   write_bios(&bios, NULL); // This prints an error when dumping but ignore it
   if(memcmp(&bios, &bios_cpy, sizeof(struct nvbios)))
-    printf("Write bios error (major error)\n");
+    printf("Write bios critical error\n");
   return 0;
 }
 
@@ -1104,17 +1132,8 @@ int verify_bios(struct nvbios *bios)
     return 0;
   }
 
-  if(get_gpu_arch(device_id) & (NV4X | NV5X))
-  {
-  // For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards).
-    if(!locate(bios, "BIT", pcir_offset))
-    {
-      printf("Error: Could not find \"BIT\" string\n");
-      return 0;
-    }
-  }
   /* We are dealing with a card that only contains the BMP structure */
-  else
+  if(get_gpu_arch(device_id) & (NV5 | NV1X | NV2X | NV3X))
   {
     /* The main offset starts with "0xff 0x7f NV" */
     if(!(nv_offset = locate(bios, "\xff\x7fNV", 0)))
@@ -1128,6 +1147,15 @@ int verify_bios(struct nvbios *bios)
     if(bios->rom[nv_offset + 5] < 5)
     {
       printf("Error: This card/rom is too old\n");
+      return 0;
+    }
+  }
+  else
+  {
+  // For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards).
+    if(!locate(bios, "BIT", pcir_offset))
+    {
+      printf("Error: Could not find \"BIT\" string\n");
       return 0;
     }
   }
@@ -1157,9 +1185,9 @@ int read_bios(struct nvbios *bios, const char *filename)
   }
   else
   {
-    if(!(*load_bios[i])(bios))
+    if(!(*load_bios[i])(bios)) //either prom or pramin read
     {
-      if(!(*load_bios[1 - i])(bios))
+      if(!(*load_bios[1-i])(bios)) // the opposite of what is above
       {
         printf("Error: Unable to shadow the video bios from PROM or PRAMIN\n");
         return 0;
@@ -1183,22 +1211,28 @@ int write_bios(struct nvbios *bios, const char *filename)
 
   *(u_short *)(bios->rom + 0x54) = WRITE_LE_SHORT(bios->subven_id);
   *(u_short *)(bios->rom + 0x56) = WRITE_LE_SHORT(bios->subsys_id);
-  nv_write(bios, bios->mod_date, 0x38);
+  nv_write_segment(bios, bios->mod_date, 0x38, 8);
 
   pcir_offset = locate(bios, "PCIR", 0);
 
   *(u_short *)(bios->rom + pcir_offset + 6) = WRITE_LE_SHORT(bios->device_id);
 
-  if(bios->arch & (NV4X | NV5X))
+  if(bios->arch == UNKNOWN && !bios->force)
   {
-
-    // For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards).
-    bit_offset = locate(bios, "BIT", 0);
-
-    write_bit_structure(bios, bit_offset);
+    printf("Bios writing is unsupported on UNKNOWN architectures.\n");
+    printf("Use -f or --force if you are sure you know what you are doing\n");
+    return 0;
   }
+  else if(bios->arch & NV6X && !bios->force)
+  {
+    printf("Fermi is currently unsupported for writing because the performance table\n");
+    printf("is completely new and other things may be new as well\n");
+    printf("Use -f or --force if you are sure you know what you are doing\n");
+    return 0;
+  }
+
   // We are dealing with a card that only contains the BMP structure
-  else
+  if(bios->arch & (NV5 | NV1X | NV2X | NV3X))
   {
     // The main offset starts with "0xff 0x7f NV"
     nv_offset = locate(bios, "\xff\x7fNV", 0);
@@ -1212,6 +1246,13 @@ int write_bios(struct nvbios *bios, const char *filename)
       nv30_write(bios, nv_offset);
     else
       nv5_write(bios, nv_offset);
+  }
+  else
+  {
+    // For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards).
+    bit_offset = locate(bios, "BIT", 0);
+
+    write_bit_structure(bios, bit_offset);
   }
 
   if(!verify_bios(bios))
@@ -1228,12 +1269,17 @@ int write_bios(struct nvbios *bios, const char *filename)
   bios_cpy.no_correct_checksum = bios->no_correct_checksum;
   bios_cpy.verbose = bios->verbose;
   bios_cpy.pramin_priority = bios->pramin_priority;
+  bios_cpy.force = bios->force;
 
   parse_bios(&bios_cpy);
 
   if(memcmp(&bios_cpy, bios, sizeof(struct nvbios)))
   {
     printf("Copy verification error\n");
+#ifdef DEBUG
+  print_bios_info(bios);
+  print_bios_info(&bios_cpy);
+#endif
     return 0;
   }
 
@@ -1287,7 +1333,7 @@ void parse_bios(struct nvbios *bios)
 
   bios->subven_id = READ_SHORT(bios->rom, 0x54);
   bios->subsys_id = READ_SHORT(bios->rom, 0x56);
-  nv_read(bios, bios->mod_date, 0x38);
+  nv_read_segment(bios, bios->mod_date, 0x38, 8);
 
   pcir_offset = locate(bios, "PCIR", 0);
 
@@ -1296,16 +1342,13 @@ void parse_bios(struct nvbios *bios)
   bios->arch = get_gpu_arch(bios->device_id);
   get_vendor_name(bios->subven_id, bios->vendor_name);
 
-  if(bios->arch & (NV4X | NV5X))
-  {
+  if(bios->arch == UNKNOWN)
+    printf("Warning: attempting to parse unknown architecture.\n");
+  else if(bios->arch & NV6X)
+    printf("Warning: attempting to parse Fermi.  At least the performance table will be\n\t wrong\n");
 
-  /* For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards). */
-    bit_offset = locate(bios, "BIT", 0);
-
-    read_bit_structure(bios, bit_offset);
-  }
   /* We are dealing with a card that only contains the BMP structure */
-  else
+  if(bios->arch & (NV5 | NV1X | NV2X | NV3X))
   {
     int version;
 
@@ -1327,6 +1370,14 @@ void parse_bios(struct nvbios *bios)
       nv30_read(bios, nv_offset);
     else
       nv5_read(bios, nv_offset);
+  }
+  else
+  {
+
+  /* For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards). */
+    bit_offset = locate(bios, "BIT", 0);
+
+    read_bit_structure(bios, bit_offset);
   }
 }
 
