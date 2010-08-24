@@ -58,11 +58,8 @@
 
 // NOTE: Whenever an index is found we should probably check for out of bounds cases before parsing values after it
 // TODO: Do pre-6 series parsing and Fermi parsing
-// FIXME: ? I probably should only apply dividers when displaying data as not to lose any precision when I have to write the unedited values back.  However now this would be detected by the copy verification error in write_bios.  If complaints are filed I will have to change a few things.
-// FIXME: I should probably make sure nv_read doesnt read in something too big for the buffer.  Really I need to find out about old signon messages so I can remove nv_read altogether.
-// FIXME: Don't assume Nvidia always conforms to a logical format because they don't.
 
-// A key emphasis in this file is to use the newest parsing methods for unsupported architectures
+// TODO: Don't assume Nvidia always conforms to a logical format because they don't.
 
 enum
 {
@@ -102,6 +99,7 @@ struct BitPerformanceTableHeader
 // Read a string from a given offset
 void nv_read(struct nvbios *bios, char *str, u_short offset)
 {
+// FIXME: I should probably make sure this doesnt read in something too big for the buffer.  Really I need to find out about old signon messages so I can remove nv_read altogether.
   u_short i;
   for(i = 0; bios->rom[offset+i]; i++)
     str[i] = bios->rom[offset+i];
@@ -187,7 +185,7 @@ void nv30_read_performance_table(struct nvbios *bios, int offset)
   for(i = 0; i < bios->perf_entries; i++)
   {
     bios->perf_lst[i].active = 1; // TODO: determine if all entries are active on nv30
-    bios->perf_lst[i].nvclk =  (READ_INT(bios->rom, offset))/100;
+    bios->perf_lst[i].nvclk =  READ_INT(bios->rom, offset);
 
     /* The list can contain multiple distinct memory clocks.
     /  Later on the ramcfg register can tell which of the ones is the right one.
@@ -198,11 +196,11 @@ void nv30_read_performance_table(struct nvbios *bios, int offset)
     /  is twice as high. It doesn't seem to be the case for all bioses though. In some effective
     /  and real speed entries existed but this might be patched dumps.
     */
-    bios->perf_lst[i].memclk =  (READ_INT(bios->rom, offset+4))/50;
+    bios->perf_lst[i].memclk =  READ_INT(bios->rom, offset+4);
 
     /* Move behind the timing stuff to the fanspeed and voltage */
     bios->perf_lst[i].fanspeed = bios->rom[offset + 54];
-    bios->perf_lst[i].voltage = (float)bios->rom[offset + 55]/100;
+    bios->perf_lst[i].voltage = bios->rom[offset + 55];
 
     offset += size;
   }
@@ -225,7 +223,7 @@ void nv30_write_performance_table(struct nvbios *bios, int offset)
 
   for(i = 0; i < bios->perf_entries; i++)
   {
-    *(int *)(bios->rom + offset) = WRITE_LE_INT(bios->perf_lst[i].nvclk * 100);
+    *(int *)(bios->rom + offset) = WRITE_LE_INT(bios->perf_lst[i].nvclk);
 
     /* The list can contain multiple distinct memory clocks.
     /  Later on the ramcfg register can tell which of the ones is the right one.
@@ -236,12 +234,11 @@ void nv30_write_performance_table(struct nvbios *bios, int offset)
     /  is twice as high. It doesn't seem to be the case for all bioses though. In some effective
     /  and real speed entries existed but this might be patched dumps.
     */
-    *(int *)(bios->rom + offset + 4) = WRITE_LE_INT(bios->perf_lst[i].memclk * 50);
+    *(int *)(bios->rom + offset + 4) = WRITE_LE_INT(bios->perf_lst[i].memclk);
 
     /* Move behind the timing stuff to the fanspeed and voltage */
     bios->rom[offset + 54] = bios->perf_lst[i].fanspeed;
-    float temp = bios->perf_lst[i].voltage * 100;
-    bios->rom[offset + 55] = temp;
+    bios->rom[offset + 55] = bios->perf_lst[i].voltage;
 
     offset += size;
   }
@@ -289,17 +286,23 @@ void read_bit_performance_table(struct nvbios *bios, int offset)
 
   struct BitPerformanceTableHeader *header = (struct BitPerformanceTableHeader*)(bios->rom+offset);
 
-  if(header->num_active_entries > MAX_PERF_LVLS)
-    printf("There seem to be more active performance table entries than built-in maximum: %d\n", MAX_PERF_LVLS);
-
   /* The first byte contains a version number; based on this we set offsets to interesting entries */
-  // TODO: change this so default handles newer versions rather than older versions
   // Are locks only important to 0x24 versions?
-  //printf("%X\n", header->version);
 
-  // Currently seen versions < 25: 0x24, 0x23, 0x21
   switch(header->version)
   {
+    case 0x21:
+    case 0x22:
+    case 0x23:
+    case 0x24:
+      shader_offset = 0;
+      fanspeed_offset = 4;
+      voltage_offset = 5;
+      nvclk_offset = 6;
+      delta_offset = 7; //FIXME;
+      memclk_offset = 11;
+      lock_offset = 13;
+      break;
     case 0x25: /* First seen on Geforce 8800GTS bioses */
       lock_offset = 0;
       delta_offset = 0;
@@ -319,15 +322,15 @@ void read_bit_performance_table(struct nvbios *bios, int offset)
       shader_offset = 10;
       memclk_offset = 12;
       break;
-    default: /* Default to this for all other bioses, I haven't seen issues yet for the entries we use */
-      shader_offset = 0;
-      fanspeed_offset = 4;
-      voltage_offset = 5;
-      nvclk_offset = 6;
-      delta_offset = 7; //FIXME;
-      memclk_offset = 11;
-      lock_offset = 13;
+    case 0x40:
+    default:
+      printf("Error: This performance table version is currently unsupported\n");
+      return;
   }
+
+  if(bios->verbose)
+    if(header->num_active_entries > MAX_PERF_LVLS)
+      printf("Warning: There seem to be more active performance table entries than built-in maximum: %d\n", MAX_PERF_LVLS);
 
   // +5 contains the number of entries, +4 the size of one in bytes and +3 is some 'offset'
   entry_size = header->offset + header->entry_size * header->num_entries;
@@ -341,7 +344,7 @@ void read_bit_performance_table(struct nvbios *bios, int offset)
   {
     if(i == MAX_PERF_LVLS)
     {
-      printf("Excess performance table entries\n");
+      printf("Error: Excess performance table entries\n");
       break;
     }
 
@@ -349,13 +352,13 @@ void read_bit_performance_table(struct nvbios *bios, int offset)
     // Do the last 4 bits of the first byte tell if an entry is active on 0x35?
     if ( (header->version != 0x35) && (bios->rom[offset] & 0xf0) != 0x20)
     {
-      printf("Performance table alignment error\n");
+      printf("Error: Performance table alignment error\n");
       break;
     }
 
     bios->perf_lst[i].active = (i < header->num_active_entries);
     bios->perf_lst[i].fanspeed = bios->rom[offset+fanspeed_offset];
-    bios->perf_lst[i].voltage = (float)bios->rom[offset+voltage_offset] / 100;
+    bios->perf_lst[i].voltage = bios->rom[offset+voltage_offset];
 
     bios->perf_lst[i].nvclk = READ_SHORT(bios->rom, offset+nvclk_offset);
     bios->perf_lst[i].memclk = READ_SHORT(bios->rom, offset+memclk_offset);
@@ -377,6 +380,11 @@ void read_bit_performance_table(struct nvbios *bios, int offset)
     offset += entry_size;
   }
   bios->perf_entries = i;
+#ifdef DEBUG
+  printf("perf table version: %X\n", header->version);
+  printf("active perf entries: %d\n", header->num_active_entries);
+  printf("number of perf entries: %d\n", i);
+#endif
 }
 
 void write_bit_performance_table(struct nvbios *bios, int offset)
@@ -387,14 +395,22 @@ void write_bit_performance_table(struct nvbios *bios, int offset)
 
   struct BitPerformanceTableHeader *header = (struct BitPerformanceTableHeader*)(bios->rom+offset);
 
-  if(header->num_active_entries > MAX_PERF_LVLS)
-    printf("There seem to be more active performance table entries than built-in maximum: %d\n", MAX_PERF_LVLS);
-
   /* The first byte contains a version number; based on this we set offsets to interesting entries */
-  // TODO: change this so default handles newer versions rather than older versions
 
   switch(header->version)
   {
+    case 0x21:
+    case 0x22:
+    case 0x23:
+    case 0x24:
+      shader_offset = 0;
+      fanspeed_offset = 4;
+      voltage_offset = 5;
+      nvclk_offset = 6;
+      delta_offset = 7; //FIXME;
+      memclk_offset = 11;
+      lock_offset = 13;
+      break;
     case 0x25: /* First seen on Geforce 8800GTS bioses */
       lock_offset = 0;
       delta_offset = 0;
@@ -414,15 +430,15 @@ void write_bit_performance_table(struct nvbios *bios, int offset)
       shader_offset = 10;
       memclk_offset = 12;
       break;
-    default: /* Default to this for all other bioses, I haven't seen issues yet for the entries we use */
-      shader_offset = 0;
-      fanspeed_offset = 4;
-      voltage_offset = 5;
-      nvclk_offset = 6;
-      delta_offset = 7; //FIXME;
-      memclk_offset = 11;
-      lock_offset = 13;
+    case 0x40:
+    default:
+      printf("Error: This performance table version is currently unsupported\n");
+      return;
   }
+
+  if(bios->verbose)
+    if(header->num_active_entries > MAX_PERF_LVLS)
+      printf("Warning: There seem to be more active performance table entries than built-in maximum: %d\n", MAX_PERF_LVLS);
 
   // +5 contains the number of entries, +4 the size of one in bytes and +3 is some 'offset'
   entry_size = header->offset + header->entry_size * header->num_entries;
@@ -436,7 +452,7 @@ void write_bit_performance_table(struct nvbios *bios, int offset)
   {
     if(i == MAX_PERF_LVLS)
     {
-      printf("Excess performance table entries\n");
+      printf("Error: Excess performance table entries\n");
       break;
     }
 
@@ -444,13 +460,12 @@ void write_bit_performance_table(struct nvbios *bios, int offset)
     // Do the last 4 bits of the first byte tell if an entry is active on 0x35?
     if ( (header->version != 0x35) && (bios->rom[offset] & 0xf0) != 0x20)
     {
-      printf("Performance table alignment error\n");
+      printf("Error: Performance table alignment error\n");
       break;
     }
 
     bios->rom[offset+fanspeed_offset] = bios->perf_lst[i].fanspeed;
-    float temp = bios->perf_lst[i].voltage * 100;
-    bios->rom[offset+voltage_offset] = temp;
+    bios->rom[offset+voltage_offset] = bios->perf_lst[i].voltage;
 
     *(u_short *)(bios->rom + offset + nvclk_offset) = WRITE_LE_SHORT(bios->perf_lst[i].nvclk);
     *(u_short *)(bios->rom + offset + memclk_offset) = WRITE_LE_SHORT(bios->perf_lst[i].memclk);
@@ -676,14 +691,12 @@ void read_voltage_table(struct nvbios *bios, int offset)
     case 0x12:
        start = 5;
       entry_size = bios->rom[offset+1];
-      // !!! Warning next two lines were u_char *
-      bios->volt_entries = bios->rom[offset+2];
+      // !!! Warning this was u_char *
       bios->volt_mask = bios->rom[offset+4];
       break;
-    default:
+    default: // 11, 20, 24?  I'm guessing 11 doesnt belong here. I need to test the others too.
+             // Note that 24 only appears on newer roms with performance table version 0x40
       start = bios->rom[offset+1];
-      // !!! Warning this was u_char *
-      bios->volt_entries = bios->rom[offset+2];
       entry_size = bios->rom[offset+3];
 
       /* The VID mask is stored right before the start of the first entry? */
@@ -691,22 +704,30 @@ void read_voltage_table(struct nvbios *bios, int offset)
       bios->volt_mask = bios->rom[offset+start -1];
   }
 
-  if(bios->volt_entries > MAX_VOLT_LVLS)
-    printf("There seem to be more voltage table entries than built-in maximum: %d\n", MAX_VOLT_LVLS);
+  // !!! Warning this was u_char *
+  bios->rom[offset+2] = bios->volt_entries;
+
+  if(bios->verbose)
+    if(bios->volt_entries > MAX_VOLT_LVLS)
+      printf("Warning: There seem to be more voltage table entries than built-in maximum: %d\n", MAX_VOLT_LVLS);
 
   offset += start;
   for(i = 0; i < bios->volt_entries; i++)
   {
     if(i == MAX_VOLT_LVLS)
     {
-      printf("Excess voltage table entries\n");
+      printf("Error: Excess voltage table entries\n");
       break;
     }
-    /* The voltage is stored in multiples of 10mV, scale it to V */
-    bios->volt_lst[i].voltage = (float)bios->rom[offset] / 100;
+
+    bios->volt_lst[i].voltage = bios->rom[offset];
     bios->volt_lst[i].VID = bios->rom[offset + 1];
     offset += entry_size;
   }
+#ifdef DEBUG
+  printf("voltage table version: %X\n", bios->rom[offset]);
+  printf("number of volt entries: %d\n", bios->volt_entries);
+#endif
 }
 
 void write_voltage_table(struct nvbios *bios, int offset)
@@ -722,30 +743,30 @@ void write_voltage_table(struct nvbios *bios, int offset)
     case 0x12:
       start = 5;
       entry_size = bios->rom[offset+1];
-      // !!! Warning this was u_char *
-      bios->rom[offset+2] = bios->volt_entries;
       break;
-    default:
+    default: // 11, 20, 24?  I'm guessing 11 doesnt belong here. I need to test the others too.
+             // Note that 24 only appears on newer roms with performance table version 0x40
       start = bios->rom[offset+1];
-      // !!! Warning this was u_char *
-      bios->rom[offset+2] = bios->volt_entries;
       entry_size = bios->rom[offset+3];
   }
 
-  if(bios->volt_entries > MAX_VOLT_LVLS)
-    printf("There seem to be more voltage table entries than built-in maximum: %d\n", MAX_VOLT_LVLS);
+  // !!! Warning this was u_char *
+  bios->rom[offset+2] = bios->volt_entries;
+
+  if(bios->verbose)
+    if(bios->volt_entries > MAX_VOLT_LVLS)
+      printf("Warning: There seem to be more voltage table entries than built-in maximum: %d\n", MAX_VOLT_LVLS);
 
   offset += start;
   for(i = 0; i < bios->volt_entries; i++)
   {
     if(i == MAX_VOLT_LVLS)
     {
-      printf("Excess voltage table entries\n");
+      printf("Error: Excess voltage table entries\n");
       break;
     }
-    /* The voltage is stored in multiples of 10mV, scale it to V */
-    float temp = bios->volt_lst[i].voltage * 100;
-    bios->rom[offset] = temp;
+
+    bios->rom[offset] = bios->volt_lst[i].voltage;
     bios->rom[offset + 1] = bios->volt_lst[i].VID;
     offset += entry_size;
   }
@@ -758,7 +779,7 @@ void read_string_table(struct nvbios *bios, int offset, int length)
 
   if(length != 0x15)
   {
-    printf("Unknown String Table\n");
+    printf("Error: Unknown String Table\n");
     return;
   }
 
@@ -787,7 +808,7 @@ void write_string_table(struct nvbios *bios, int offset, int length)
 
   if(length != 0x15)
   {
-    printf("Unknown String Table\n");
+    printf("Error: Unknown String Table\n");
     return;
   }
 
@@ -886,7 +907,7 @@ void read_bit_structure(struct nvbios *bios, u_int bit_offset)
           if(entry_length == 0x060C)
             printf("BIT table version : %X.%X%02X\n", (entry_offset & 0x00F0) >> 4, entry_offset & 0x000F, (entry_offset & 0xFF00) >> 8);
           else
-            printf("Unknown BIT table\n");
+            printf("Warning: Unknown BIT table\n");
         }
         break;
       case 'B': // bios version (1), boot text display time
@@ -969,7 +990,7 @@ void write_bit_structure(struct nvbios *bios, u_int bit_offset)
         if(bios->verbose)
         {
           if(entry_length != 0x060C)
-            printf("Unknown BIT table\n");
+            printf("Warning: Unknown BIT table\n");
         }
         break;
       case 'B': // bios version (1), boot text display time
@@ -1102,7 +1123,7 @@ int verify_bios(struct nvbios *bios)
   // The reason we are doing this check is that we mmap NV_PROM_SIZE and use it as the max size in a few places
   if(bios->rom_size > NV_PROM_SIZE)
   {
-    printf("This rom is too big\n");
+    printf("Error: This rom is too big\n");
     return 0;
   }
 
@@ -1112,7 +1133,7 @@ int verify_bios(struct nvbios *bios)
   offset_based_size = READ_SHORT(bios->rom, size_offset);
   if(index_based_size != offset_based_size)
   {
-    printf("Rom size validation failure\n");
+    printf("Error: Rom size validation failure\n");
     return 0;
   }
 
@@ -1219,15 +1240,8 @@ int write_bios(struct nvbios *bios, const char *filename)
 
   if(bios->arch == UNKNOWN && !bios->force)
   {
-    printf("Bios writing is unsupported on UNKNOWN architectures.\n");
-    printf("Use -f or --force if you are sure you know what you are doing\n");
-    return 0;
-  }
-  else if(bios->arch & NV6X && !bios->force)
-  {
-    printf("Fermi is currently unsupported for writing because the performance table\n");
-    printf("is completely new and other things may be new as well\n");
-    printf("Use -f or --force if you are sure you know what you are doing\n");
+    printf("Error: Bios writing is unsupported on UNKNOWN architectures.\n");
+    printf("       Use -f or --force if you are sure you know what you are doing\n");
     return 0;
   }
 
@@ -1247,7 +1261,7 @@ int write_bios(struct nvbios *bios, const char *filename)
     else
       nv5_write(bios, nv_offset);
   }
-  else
+  else  // use newest methods on unknown architectures
   {
     // For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards).
     bit_offset = locate(bios, "BIT", 0);
@@ -1267,19 +1281,18 @@ int write_bios(struct nvbios *bios, const char *filename)
   bios_cpy.crc = bios->crc;
   bios_cpy.fake_crc = bios->fake_crc;
   bios_cpy.no_correct_checksum = bios->no_correct_checksum;
-  bios_cpy.verbose = bios->verbose;
   bios_cpy.pramin_priority = bios->pramin_priority;
   bios_cpy.force = bios->force;
 
+  // keep verbose off during our internal check
   parse_bios(&bios_cpy);
+
+  // now restore the verbose state so we can compare
+  bios_cpy.verbose = bios->verbose;
 
   if(memcmp(&bios_cpy, bios, sizeof(struct nvbios)))
   {
-    printf("Copy verification error\n");
-#ifdef DEBUG
-  print_bios_info(bios);
-  print_bios_info(&bios_cpy);
-#endif
+    printf("Error: Internal copy verification error\n");
     return 0;
   }
 
@@ -1344,8 +1357,6 @@ void parse_bios(struct nvbios *bios)
 
   if(bios->arch == UNKNOWN)
     printf("Warning: attempting to parse unknown architecture.\n");
-  else if(bios->arch & NV6X)
-    printf("Warning: attempting to parse Fermi.  At least the performance table will be\n\t wrong\n");
 
   /* We are dealing with a card that only contains the BMP structure */
   if(bios->arch & (NV5 | NV1X | NV2X | NV3X))
@@ -1371,7 +1382,7 @@ void parse_bios(struct nvbios *bios)
     else
       nv5_read(bios, nv_offset);
   }
-  else
+  else  // use newest methods on unknown architectures
   {
 
   /* For NV40 card the BIT structure is used instead of the BMP structure (last one doesn't exist anymore on 6600/6800le cards). */
@@ -1409,7 +1420,7 @@ int load_bios_file(struct nvbios *bios, const char* filename)
 
   if(size != proj_file_size)
   {
-    printf("Error: The file size %dB does not match the projected file size %dB\n", size, proj_file_size);
+    printf("Error: The file size %d B does not match the projected file size %d B\n", size, proj_file_size);
     return 0;
   }
 
@@ -1421,7 +1432,7 @@ int load_bios_file(struct nvbios *bios, const char* filename)
     bios->checksum = bios->checksum + bios->rom[i];
 
   if(bios->checksum)
-    printf("The checksum is incorrect\n");
+    printf("Warning: The checksum is incorrect\n");
 
   // Ignore CRC on file read as we dont know if the file is for a physically connected card
   bios->crc = CRC(0, bios->rom, bios->rom_size);
@@ -1608,19 +1619,37 @@ void print_bios_info(struct nvbios *bios)
       /* For now assume the first memory entry is the right one; should be fixed as some bioses contain various different entries */
     shader_num[0] = lock_nibble[0] = 0;
 
+    u_int display_nvclk = bios->perf_lst[i].nvclk;
+    u_int display_memclk = bios->perf_lst[i].memclk;
+
     if(bios->arch & NV5X)
       sprintf(shader_num, " | %5u MHz", bios->perf_lst[i].shaderclk);
     if(bios->arch & NV4X)
       sprintf(lock_nibble, " | %4X", bios->perf_lst[i].lock);
+    if(bios->arch & NV3X)
+    {
+      display_nvclk /= 100;
+      display_memclk /= 50;
+      if(display_nvclk > 0xFFFF || display_memclk > 0xFFFF)
+        printf("Warning: Core clock or Memory clock is too high.  Masking clks...\n");
+      display_nvclk &= 0xFFFF;
+      display_memclk &= 0xFFFF;
+    }
 
-    printf("%8d |    %s | %5u MHz%s | %5u MHz | %1.2f V  | %3d%%%s\n", i, bios->perf_lst[i].active ? "Yes" : "No ", bios->perf_lst[i].nvclk, shader_num, bios->perf_lst[i].memclk, bios->perf_lst[i].voltage, bios->perf_lst[i].fanspeed, lock_nibble);
+    /* The voltage is stored in multiples of 10mV, scale it to V */
+    float display_voltage = (float)bios->perf_lst[i].voltage / 100.0;
+    printf("%8d |    %s | %5u MHz%s | %5u MHz | %1.2f V  | %3d%%%s\n", i, bios->perf_lst[i].active ? "Yes" : "No ", display_nvclk, shader_num, display_memclk, display_voltage, bios->perf_lst[i].fanspeed, lock_nibble);
   }
 
   if(bios->volt_entries)
     printf("\nVID mask: %x\n", bios->volt_mask);
 
   for(i = 0; i < bios->volt_entries; i++)
-    printf("Voltage level %d: %.2fV, VID: %x\n", i, bios->volt_lst[i].voltage, bios->volt_lst[i].VID);
+  {
+    /* The voltage is stored in multiples of 10mV, scale it to V */
+    float display_voltage = (float)bios->volt_lst[i].voltage / 100.0;
+    printf("Voltage level %d: %1.2fV, VID: %x\n", i, display_voltage, bios->volt_lst[i].VID);
+  }
 
   printf("\nTemparature compensation         : %d\n", bios->temp_correction);
   if(bios->caps & FNBST_THLD_1)

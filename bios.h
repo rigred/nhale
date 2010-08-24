@@ -19,7 +19,7 @@
 struct voltage
 {
   unsigned char VID;
-  float voltage;
+  unsigned char voltage;
 };
 
 struct performance
@@ -31,7 +31,7 @@ struct performance
   unsigned short shaderclk;
   unsigned char fanspeed;
   unsigned char lock;
-  float voltage;
+  unsigned char voltage;
 };
 
 struct vco
@@ -60,7 +60,7 @@ struct sensor
   int temp_correction;
 };
 
-enum { MAX_PERF_LVLS = 0x4, MAX_VOLT_LVLS = MAX_PERF_LVLS };
+enum { MAX_PERF_LVLS = 0x4, MAX_VOLT_LVLS = 0x8 };
 
 struct nvbios
 {
