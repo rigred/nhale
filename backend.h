@@ -20,6 +20,7 @@
  */
 
 // TODO: restructure NVXY defines using top 22 bits as select lines for NVX and bottom 10 bits as NVX1,NVX2, etc
+// NOTE: this is currently not an appropriate header for the library.  However, I will change this in the future when I feel the library is ready.
 
 #include <stdint.h>
 
