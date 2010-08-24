@@ -60,6 +60,7 @@
 // TODO: Do pre-6 series parsing and Fermi parsing
 
 // TODO: Don't assume Nvidia always conforms to a logical format because they don't.
+// NOTICE: Never divide a value from the rom and store in the nvbios structure.  Because of finite precision we cannot guarantee we can get the original value back.  This is especially important when the user doesn't edit their rom at all and thus no values should change.
 
 enum
 {
