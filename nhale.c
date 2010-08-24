@@ -63,12 +63,6 @@ void usage(void)
   printf("   -h, --help\t\t\tPrint this usage information.\n\n");
 }
 
-void cleanup(char *a, char *b)
-{
-  free(a);
-  free(b);
-}
-
 int main(int argc, char **argv)
 {
   int c;
@@ -192,8 +186,11 @@ int main(int argc, char **argv)
   if(!outfile && !print_info)
     return 0;
 
-  nv_card = card_list + card_index;
-  map_mem(nv_card->dev_name);
+  if(!infile)
+  {
+    nv_card = card_list + card_index;
+    map_mem(nv_card->dev_name);
+  }
 
   if(read_bios(&bios, infile))
   {
@@ -205,7 +202,8 @@ int main(int argc, char **argv)
         printf("Unable to create rom dump\n");
   }
 
-  unmap_mem();
+  if(!infile)
+    unmap_mem();
 
   return 0;
 }
