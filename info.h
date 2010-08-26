@@ -3,4 +3,4 @@ void get_card_name(int, char *);
 int get_gpu_arch(short);
 short get_gpu_architecture(void);
 short get_gpu_revision(void);
-void get_vendor_name(short, char *);
+void get_subvendor_name(short, char *);
