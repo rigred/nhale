@@ -141,12 +141,12 @@ unsigned int probe_devices(NVCard *nvcard_list)
           nvcard_list[i].reg_address = reg_addr;
           break;
         case 1:
-          nvcard_list[i].dev_name = calloc(13, sizeof(char));
+          nvcard_list[i].dev_name = (char *)calloc(13, sizeof(char));
           sprintf(nvcard_list[i].dev_name, "/dev/nvidia%d", i);
           nvcard_list[i].reg_address = 0;
           break;
         case 2:
-          nvcard_list[i].dev_name = calloc(13, sizeof(char));
+          nvcard_list[i].dev_name = (char *)calloc(13, sizeof(char));
           sprintf(nvcard_list[i].dev_name, "/dev/nvidia%d", i);
           nvcard_list[i].reg_address = reg_addr;
           break;
@@ -202,10 +202,10 @@ int map_mem(const char *dev_name)
 
   /* Map the registers of the nVidia chip */
   /* normally pmc is till 0x2000 but extended it for nv40 */
-  nv_card->PMC     = map_dev_mem(fd, nv_card->reg_address + 0x000000, 0x2ffff);
-  nv_card->PDISPLAY = map_dev_mem(fd, nv_card->reg_address + NV_PDISPLAY_OFFSET, NV_PDISPLAY_SIZE);
-  nv_card->PRAMIN  = map_dev_mem(fd, nv_card->reg_address + NV_PRAMIN_OFFSET, NV_PRAMIN_SIZE);
-  nv_card->PROM    = map_dev_mem(fd, nv_card->reg_address + NV_PROM_OFFSET, NV_PROM_SIZE);
+  nv_card->PMC     = (unsigned int *)map_dev_mem(fd, nv_card->reg_address + 0x000000, 0x2ffff);
+  nv_card->PDISPLAY = (unsigned int *)map_dev_mem(fd, nv_card->reg_address + NV_PDISPLAY_OFFSET, NV_PDISPLAY_SIZE);
+  nv_card->PRAMIN  = (unsigned int *)map_dev_mem(fd, nv_card->reg_address + NV_PRAMIN_OFFSET, NV_PRAMIN_SIZE);
+  nv_card->PROM    = (unsigned char *)map_dev_mem(fd, nv_card->reg_address + NV_PROM_OFFSET, NV_PROM_SIZE);
 
   close(fd);
   return 1;
