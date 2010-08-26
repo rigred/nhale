@@ -29,14 +29,14 @@
 
 //NOTICE, NOTE, FIXME, TODO
 //TODO: Use uintn_t's where necessary.
-//TODO: Try to access PCI BIOS on my machine?
+//TODO: PCI BIOS?
 //TODO: Look at xf86 qt 7.6 (or 7.4?) mouse cursor lag issue?
 //TODO: Show MXM version
 //TODO: print the BDF PCI info?
 //TODO: read EEPROM ID and map to name; chip is SPI, use spi (write) to probe
 //TODO: Assert NV_PROM_SIZE <= Physical EEPROM size
 //TODO: Use CRC for verification on PRAMIN and PROM dumps
-//TODO: Determine memory manufacturer?
+//TODO: Determine memory manufacturer?  I can either use i2c or find it in rom?
 //TODO: make a g_debug_print
 //TODO: expand bios caps to indicate what values the bios has
 //NOTE: 0x100 seems to be important value for nvflash parsing on my 3600M
@@ -47,7 +47,7 @@ NVCard *nv_card;
 
 void usage(void)
 {
-  printf("\nnhale v0.0\n");
+  printf("\nnhale v0.1\n");
   printf("Yet another Nvidia rom editor.  Use this program at your own risk.\n\n");
 
   printf("Options:\n");
