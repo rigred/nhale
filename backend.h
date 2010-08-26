@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
-// TODO: restructure NVXY defines using top 22 bits as select lines for NVX and bottom 10 bits as NVX1,NVX2, etc
+// TODO: restructure NVAB defines using top 16 bits as select lines for NVAX and bottom 16 bits as NVA1,NVA2, etc
 // NOTE: this is currently not an appropriate header for the library.  However, I will change this in the future when I feel the library is ready.
 
 #include <stdint.h>
@@ -47,6 +47,9 @@ enum
   NV_PROM_SIZE = 0x10000
 };
 
+
+// NOTICE: Rule: NV5 < NV1X < NV2X < .... < NVNX
+// TODO: maybe define NV0X = NV5
 enum
 {
   NV5 = (1<<0),
