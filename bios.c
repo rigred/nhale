@@ -36,11 +36,7 @@
 #include "crc32.h"
 #include "config.h"
 
-//#define READ_BYTE(rom, offset) (*(u_char *)(rom + offset))
-//#define READ_SHORT(rom, offset) (*(u_short *)(rom + offset))
-//#define READ_INT(rom, offset) (*(u_int *)(rom + offset))
-
-#define READ_BYTE(rom, offset)  (rom[offset]&0xff)
+#define READ_BYTE(rom, offset) (*(u_char *)(rom + offset))
 
 // This file should now support big endian (imported from config.h)
 // NOTICE: Never read or write any type larger than one byte from the rom without these macros
@@ -431,7 +427,7 @@ void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
 void parse_bit_temperature_table(struct nvbios *bios, int offset, char rnw)
 {
   short i;
-  struct BitTableHeader *header = (struct BitTableHeader*)(bios->rom+offset);
+  struct BitTableHeader *header = (struct BitTableHeader*)(bios->rom + offset);
   int old_caps;
 
   if(rnw)
