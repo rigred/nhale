@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#ifdef NHALE_GET_ENDIANNESS
+
+// NOTE: I only consider big endian and little endian as possible byte orders
+
 int main(void)
 {
   union
@@ -19,3 +23,5 @@ int main(void)
 
   return 0;
 }
+
+#endif

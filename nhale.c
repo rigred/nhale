@@ -40,8 +40,10 @@
 //TODO: make a g_debug_print
 //TODO: expand bios caps to indicate what values the bios has
 //NOTE: 0x100 seems to be important value for nvflash parsing on my 3600M
-//TODO: Try to find hidden rom in system bios on laptops with no video bios stored on PROM (integrate with flashrom)
+//TODO: Try to find hidden rom in system bios on laptops with no video bios stored on PROM (integrate with flashrom) ?
 //TODO: Make a log.c to log all tables for development
+//TODO: Move the script.c here
+//TODO: MAKE THE GUI ALREADY!
 
 NVCard *nv_card;
 
@@ -154,7 +156,7 @@ int main(int argc, char **argv)
         return -1;
       case 1:
         if(card_index)
-          printf("Only detected one card.  Overwriting user-specified index: %d\n", card_index);
+          fprintf(stderr, "Only detected one card.  Overwriting user-specified index: %d\n", card_index);
         card_index = 0;
         break;
       default:
@@ -189,7 +191,8 @@ int main(int argc, char **argv)
   if(!infile)
   {
     nv_card = card_list + card_index;
-    map_mem(nv_card->dev_name);
+    if(!map_mem(nv_card->dev_name))
+      return -1;
   }
 
   if(read_bios(&bios, infile))
@@ -199,7 +202,7 @@ int main(int argc, char **argv)
 
     if(outfile)
       if(!write_bios(&bios, outfile))
-        printf("Unable to create rom dump\n");
+        printf("Error: Unable to dump the rom image\n");
   }
 
   if(!infile)

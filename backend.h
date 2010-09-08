@@ -48,7 +48,7 @@ enum
 };
 
 
-// NOTICE: Rule: NV5 < NV1X < NV2X < .... < NVNX
+// NOTICE: Rule: NV5 < NV1X < NV2X < .... < NVNX < UNKNOWN
 // TODO: maybe define NV0X = NV5
 enum
 {
@@ -83,7 +83,8 @@ enum
   GT200 = (1<<24),
   NV5X = (NV50 | G84 | G86 | G92 | G94 | G96 | GT200),
   GF100 = (1<<25),
-  NV6X = (GF100)
+  NV6X = (GF100),
+  UNKNOWN = (1 << 30)
 };
 
 typedef struct {
@@ -100,6 +101,5 @@ typedef struct {
 } NVCard;
 
 enum { MAX_CARDS = 0x4 };
-enum { UNKNOWN = 0x0 };
 
 extern NVCard* nv_card;

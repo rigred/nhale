@@ -89,6 +89,11 @@ struct nvbios
   char str[8][256];
   char version[2][20];
 
+  unsigned short text_time;
+
+  unsigned char bit_table_version;
+
+  unsigned char temp_table_version;
   short temp_correction; //seems like this should be signed
   unsigned short fnbst_int_thld;
   unsigned short fnbst_ext_thld;
@@ -97,13 +102,14 @@ struct nvbios
   unsigned short crtcl_int_thld;
   unsigned short crtcl_ext_thld;
 
-  unsigned short text_time;
 
-
+  unsigned char volt_table_version;
   unsigned short volt_entries;
+  unsigned short active_volt_entries;
   short volt_mask; // non-modifiable
   struct voltage volt_lst[MAX_VOLT_LVLS];
 
+  unsigned char perf_table_version;
   unsigned short perf_entries;
   unsigned short active_perf_entries;
   struct performance perf_lst[MAX_PERF_LVLS];

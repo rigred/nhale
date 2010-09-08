@@ -119,7 +119,7 @@ unsigned int probe_devices(NVCard *nvcard_list)
 
       if(i == MAX_CARDS)
       {
-        printf("Error: stopped probing for video cards after discovering %d video cards\n", MAX_CARDS);
+        fprintf(stderr, "Error: stopped probing for video cards after discovering %d video cards\n", MAX_CARDS);
         return i;
       }
 
