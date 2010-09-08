@@ -1,10 +1,11 @@
 CC = gcc
 CFLAGS = -Werror -Wall -Wextra -Wno-unused-parameter
+CFLAGS_FUTURE = -Wswitch-break
 AR = ar
 OBJECTS = back_linux.o bios.o info.o crc32.o
 DEPS = libbackend.a
 
-.PHONY: clean distcleans
+.PHONY: clean distclean
 
 nhale:  $(DEPS) nhale.c
 	$(CC) $(CFLAGS) nhale.c $(DEPS) -o nhale
@@ -25,7 +26,7 @@ crc32.o: crc32.c crc32.h
 	$(CC) -c $(CFLAGS) crc32.c
 
 config.h:
-	$(CC) endian.c -o nhale.temp.byte.order
+	$(CC) endian.c -DNHALE_GET_ENDIANNESS -o nhale.temp.byte.order
 	./nhale.temp.byte.order > config.h
 	rm -f nhale.temp.byte.order
 
