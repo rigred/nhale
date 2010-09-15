@@ -42,14 +42,14 @@
 // NOTICE: Never read or write any type larger than one byte from the rom without these macros
 
 #ifndef NHALE_BIG_ENDIAN
-  #define READ_SHORT(rom, offset) (READ_BYTE(rom, offset+1) << 8   | READ_BYTE(rom, offset))
-  #define READ_INT(rom, offset)   (READ_SHORT(rom, offset+2) << 16 | READ_SHORT(rom, offset))
+  #define READ_LE_SHORT(rom, offset) (*(u_short *)(rom + offset))
+  #define READ_LE_INT(rom, offset)   (*(u_int *)(rom + offset))
   #define WRITE_LE_SHORT(data)    (data)
   #define WRITE_LE_INT(data)      (data)
   #define CRC(x,y,z) crc32_little(x,y,z)
 #else
-  #define READ_SHORT(rom, offset) (READ_BYTE(rom, offset) << 8   | READ_BYTE(rom, offset +1))
-  #define READ_INT(rom, offset)   (READ_SHORT(rom, offset) << 16 | READ_SHORT(rom, offset+2))
+  #define READ_LE_SHORT(rom, offset) (READ_BYTE(rom, offset+1) << 8   | READ_BYTE(rom, offset))
+  #define READ_LE_INT(rom, offset)   (READ_LE_SHORT(rom, offset+2) << 16 | READ_LE_SHORT(rom, offset))
   #define WRITE_LE_SHORT(data)    (((data) << 8 & 0xff00)   | ((data) >> 8 & 0x00ff ))
   #define WRITE_LE_INT(data)      (((data) << 24 & 0xff000000) | ((data) << 8 & 0x00ff0000) | ((data) >> 8 & 0x0000ff00) | ((data) >> 24 & 0x000000ff))
   #define CRC(x,y,z) crc32_big(x,y,z)
@@ -64,7 +64,9 @@
 // TODO: Find all bit table versions to make parse_bit safer
 // TODO: Integrate dump_bios into write_bios
 // NOTE: Only write_bios, read_bios, and print_bios should be defined publicly?
-// NOTE: Make an undo stack and call read_bios again to undo all
+// NOTE: Make an undo stack
+
+// these are macros for the caps member of struct nvbios
 
 enum
 {
@@ -87,9 +89,9 @@ struct BitTableHeader
 
 struct bit_entry
 {
-  uint8_t id[2]; /* first byte is ID, second byte sub-ID? */
-  uint8_t len[2]; /* size of data pointed to by offset */
-  uint8_t offset[2]; /* offset of data */
+  uint8_t id[2]; // first byte is ID, second byte sub-ID?
+  uint8_t len[2]; // size of data pointed to by offset
+  uint8_t offset[2]; // offset of data
 };
 
 struct BitPerformanceTableHeader
@@ -150,6 +152,7 @@ void nv_write_masked_segment(struct nvbios *bios, char *str, u_short offset, u_s
     bios->rom[offset+i] = str[i] ^ mask;
 }
 
+// The bios version can be bigger than 4 numbers but it is only stored in a string which is hard to locate?
 void bios_version_to_str(char *str, int version)
 {
   u_char temp[4]; //temp 0 is msb and temp 3 is lsb
@@ -171,16 +174,9 @@ int str_to_bios_version(char *str)
   return version;
 }
 
-/* Convert the bios version which is stored in a numeric way to a string.
-/  On NV40 bioses it is stored in 5 numbers instead of 4 which was the
-/  case on old cards. The bios version on old cards could be bigger than
-/  4 numbers too but that version was only stored in a string which was
-/  hard to locate. On NV40 cards the version is stored in a string too,
-/  for which the offset can be found at +3 in the 'S' table.
-*/
 void nv40_bios_version_to_str(struct nvbios *bios, char *str, short offset)
 {
-  int version = READ_INT(bios->rom, offset);
+  int version = READ_LE_INT(bios->rom, offset);
   u_char temp[4]; //temp 0 is msb and temp 3 is lsb
   u_char extra = bios->rom[offset+4];
 
@@ -204,14 +200,14 @@ void nv40_str_to_bios_version(struct nvbios *bios, char *str, short offset)
   *(u_int *)(bios->rom+offset) = WRITE_LE_INT(version);
 }
 
-/* Parse the GeforceFX performance table */
+// Parse the GeforceFX performance table
 void nv30_parse_performance_table(struct nvbios *bios, int offset, char rnw)
 {
   short i;
   u_char start;
   u_char size;
 
-  /* read how far away the start is */
+  // read how far away the start is
   start = bios->rom[offset];
 
   // TODO: find out if there are different versions
@@ -222,9 +218,9 @@ void nv30_parse_performance_table(struct nvbios *bios, int offset, char rnw)
     bios->active_perf_entries = bios->perf_entries; // TODO: determine if all entries are active on nv30
   }
   else
-    bios->rom[offset + 2] = bios->perf_entries;
+    bios->rom[offset+2] = bios->perf_entries;
 
-  size = bios->rom[offset + 3];
+  size = bios->rom[offset+3];
   offset += start + 1;
 
   // TODO: Look for the end tag at the end of this perf table
@@ -238,7 +234,7 @@ void nv30_parse_performance_table(struct nvbios *bios, int offset, char rnw)
 
     if(rnw)
     {
-      bios->perf_lst[i].nvclk =  READ_INT(bios->rom, offset);
+      bios->perf_lst[i].nvclk =  READ_LE_INT(bios->rom, offset);
 
       /* The list can contain multiple distinct memory clocks.
       /  Later on the ramcfg register can tell which of the ones is the right one.
@@ -249,32 +245,32 @@ void nv30_parse_performance_table(struct nvbios *bios, int offset, char rnw)
       /  is twice as high. It doesn't seem to be the case for all bioses though. In some effective
       /  and real speed entries existed but this might be patched dumps.
       */
-     bios->perf_lst[i].memclk =  READ_INT(bios->rom, offset+4);
+     bios->perf_lst[i].memclk =  READ_LE_INT(bios->rom, offset+4);
 
-      /* Move behind the timing stuff to the fanspeed and voltage */
-      bios->perf_lst[i].fanspeed = bios->rom[offset + 54];
-      bios->perf_lst[i].voltage = bios->rom[offset + 55];
+      // Move behind the timing stuff to the fanspeed and voltage
+      bios->perf_lst[i].fanspeed = bios->rom[offset+54];
+      bios->perf_lst[i].voltage = bios->rom[offset+55];
     }
     else
     {
       *(int *)(bios->rom + offset) = WRITE_LE_INT(bios->perf_lst[i].nvclk);
       *(int *)(bios->rom + offset + 4) = WRITE_LE_INT(bios->perf_lst[i].memclk);
-      bios->rom[offset + 54] = bios->perf_lst[i].fanspeed;
-      bios->rom[offset + 55] = bios->perf_lst[i].voltage;
+      bios->rom[offset+54] = bios->perf_lst[i].fanspeed;
+      bios->rom[offset+55] = bios->perf_lst[i].voltage;
     }
 
     offset += size;
   }
 }
 
-/* Parse the Geforce6/7/8 performance table */
+// Parse the Geforce6/7/8 performance table
 void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
 {
   u_short i;
   u_char entry_size;
   u_short nvclk_offset, memclk_offset, shader_offset, fanspeed_offset, voltage_offset,delta_offset,lock_offset;
 
-  struct BitPerformanceTableHeader *header = (struct BitPerformanceTableHeader*)(bios->rom+offset);
+  struct BitPerformanceTableHeader *header = (struct BitPerformanceTableHeader*)(bios->rom + offset);
 
   /* The first byte contains a version number; based on this we set offsets to interesting entries */
   // Are locks only important to 0x24 versions?
@@ -338,7 +334,7 @@ void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
   // HACK: My collection of bioses contains a (valid) 6600 bios with two 'bogus' entries at 0x21 (100MHz) and 0x22 (200MHz) these entries aren't the default ones for sure, so skip them until we have a better entry selection algorithm.
 
   i = 0;
-  while(READ_INT(bios->rom,offset) != 0x04104B4D)
+  while(READ_LE_INT(bios->rom,offset) != 0x04104B4D)
   {
     if(i == MAX_PERF_LVLS)
     {
@@ -355,7 +351,7 @@ void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
 
     // On bios version 0x35, this 0x20, 0x21 .. pattern doesn't exist anymore
     // Do the last 4 bits of the first byte tell if an entry is active on 0x35?
-    if ( (header->version < 0x35) && (bios->rom[offset] & 0xf0) != 0x20)
+    if((header->version < 0x35) && (bios->rom[offset] & 0xf0) != 0x20)
     {
       fprintf(stderr, "Error: Performance table alignment error\n");
       break;
@@ -366,21 +362,21 @@ void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
       bios->perf_lst[i].fanspeed = bios->rom[offset+fanspeed_offset];
       bios->perf_lst[i].voltage = bios->rom[offset+voltage_offset];
 
-      bios->perf_lst[i].nvclk = READ_SHORT(bios->rom, offset+nvclk_offset);
-      bios->perf_lst[i].memclk = READ_SHORT(bios->rom, offset+memclk_offset);
+      bios->perf_lst[i].nvclk = READ_LE_SHORT(bios->rom, offset + nvclk_offset);
+      bios->perf_lst[i].memclk = READ_LE_SHORT(bios->rom, offset + memclk_offset);
 
       // !!! Warning this was signed char *
-      if(bios->arch & (NV47 | NV49))
+      if(delta_offset && bios->arch & (NV47 | NV49))
         if(bios->rom[offset+delta_offset])
-          bios->perf_lst[i].delta = bios->rom[offset+delta_offset+1]/bios->rom[offset+delta_offset];
+          bios->perf_lst[i].delta = bios->rom[offset+delta_offset+1] / bios->rom[offset+delta_offset];
       /* Geforce8 cards have a shader clock, further the memory clock is at a different offset as well */
-      if(bios->arch & NV5X)
-        bios->perf_lst[i].shaderclk = READ_SHORT(bios->rom, offset+shader_offset);
+      if(shader_offset)
+        bios->perf_lst[i].shaderclk = READ_LE_SHORT(bios->rom, offset + shader_offset);
   //   else
   //     bios->perf_lst[i].memclk *= 2;  //FIXME
 
-      if(bios->arch & NV4X)
-        bios->perf_lst[i].lock = bios->rom[offset + lock_offset] & 0x0F;
+      if(lock_offset)
+        bios->perf_lst[i].lock = bios->rom[offset+lock_offset] & 0x0F;
     }
     else
     {
@@ -392,20 +388,20 @@ void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
 
       // !!! Warning this was signed char *
       // FIXME: need to figure out how to parse delta first
-      //if(bios->arch & (NV47 | NV49))
+      //if(delta_offset && bios->arch & (NV47 | NV49))
       //  if(bios->rom[offset+delta_offset])
-      //    bios->perf_lst[i].delta = bios->rom[offset+delta_offset+1]/bios->rom[offset+delta_offset];
+      //    bios->perf_lst[i].delta = bios->rom[offset+delta_offset+1] / bios->rom[offset+delta_offset];
 
       /* Geforce8 cards have a shader clock, further the memory clock is at a different offset as well */
-      if(bios->arch & NV5X)
+      if(shader_offset)
         *(u_short *)(bios->rom + offset + shader_offset) = WRITE_LE_SHORT(bios->perf_lst[i].shaderclk);
   //   else
   //     bios->perf_lst[i].memclk *= 2;  //FIXME
 
-      if(bios->arch & NV4X)
+      if(lock_offset)
       {
-        bios->rom[offset + lock_offset] &= 0xF0;
-        bios->rom[offset + lock_offset] |= bios->perf_lst[i].lock;
+        bios->rom[offset+lock_offset] &= 0xF0;
+        bios->rom[offset+lock_offset] |= bios->perf_lst[i].lock;
       }
     }
 
@@ -435,8 +431,9 @@ void parse_bit_temperature_table(struct nvbios *bios, int offset, char rnw)
   // versions: 0x20, 0x21, 0x23
   // new perf40 versions: 0x24, 0x40 ? This is with bit offset 0x10 in read_bit_structure
 
-  // NOTE: is temp monitoring enable bit at offset + 0x5?
-  //  FF = temp monitoring off; 00 = temp monitoring on?
+  // NOTE: is temp monitoring enable bit at offset + 0x5?  Its really in the switch-case 1 below
+  // ? Force offset + 5 to 0xFF (or 0x10?) to disable temp monitoring (7800 aftermarket cooling issue?)
+  // Force offset + 5 to 0x00 to enable temp monitoring for 6600 series
 
   int critical_thld_caps[2] = { CRTCL_THLD_1, CRTCL_THLD_2 };
   int throttle_thld_caps[2] = { THRTL_THLD_1, THRTL_THLD_2 };
@@ -450,12 +447,11 @@ void parse_bit_temperature_table(struct nvbios *bios, int offset, char rnw)
   if(!rnw)
     old_caps = bios->caps;
 
-
   offset += header->start;
   for(i = 0; i < header->num_entries; i++)
   {
     u_char id = bios->rom[offset];
-    short value = READ_SHORT(bios->rom, offset+1);
+    short value = READ_LE_SHORT(bios->rom, offset + 1);
     //printf("%02X: %02X %02X masked: %d\n", bios->rom[offset], bios->rom[offset+1], bios->rom[offset+2], (value>>4)&0x1ff);
 
     switch(id)
@@ -542,7 +538,7 @@ void parse_bit_temperature_table(struct nvbios *bios, int offset, char rnw)
             bios->caps &= ~thld_caps[0];
           }
         }
-        else if(bios->caps & thld_caps[1 - j])
+        else if(bios->caps & thld_caps[1-j])
         {
           if(rnw)
           {
@@ -659,11 +655,11 @@ void parse_voltage_table(struct nvbios *bios, int offset, char rnw)
 
   if(rnw)
   {
-    bios->volt_mask = bios->rom[offset + start - 1];
-    bios->active_volt_entries = bios->rom[offset + active_offset];
+    bios->volt_mask = bios->rom[offset+start-1];
+    bios->active_volt_entries = bios->rom[offset+active_offset];
   }
   else
-    bios->rom[offset + active_offset] = bios->active_volt_entries;
+    bios->rom[offset+active_offset] = bios->active_volt_entries;
 
 #ifdef DEBUG
   if(rnw)
@@ -680,7 +676,7 @@ void parse_voltage_table(struct nvbios *bios, int offset, char rnw)
   offset += start;
 //  for(i = 0; i < bios->volt_entries; i++)
   i = 0;
-  while((version != 0x10 && READ_SHORT(bios->rom, offset) != end_tag) || (version == 0x10 && i < 7))
+  while((version != 0x10 && READ_LE_SHORT(bios->rom, offset) != end_tag) || (version == 0x10 && i < 7))
   {
     if(i == MAX_VOLT_LVLS)
     {
@@ -691,12 +687,12 @@ void parse_voltage_table(struct nvbios *bios, int offset, char rnw)
     if(rnw)
     {
       bios->volt_lst[i].voltage = bios->rom[offset];
-      bios->volt_lst[i].VID = bios->rom[offset + 1];
+      bios->volt_lst[i].VID = bios->rom[offset+1];
     }
     else
     {
       bios->rom[offset] = bios->volt_lst[i].voltage;
-      bios->rom[offset + 1] = bios->volt_lst[i].VID;
+      bios->rom[offset+1] = bios->volt_lst[i].VID;
     }
 
     i++;
@@ -721,9 +717,9 @@ void parse_string_table(struct nvbios *bios, int offset, int length, char rnw)
   // Read the inverted Engineering Release string
   // The string is after the Copyright string on NV4X and after the VESA Rev on NV5X
   if(bios->arch & NV4X)
-    off = READ_SHORT(bios->rom, offset + 0x06) + bios->rom[offset + 0x08] + 0x1;
+    off = READ_LE_SHORT(bios->rom, offset + 0x06) + bios->rom[offset+0x08] + 0x1;
   else
-    off = READ_SHORT(bios->rom, offset + 0x12) + bios->rom[offset + 0x14];
+    off = READ_LE_SHORT(bios->rom, offset + 0x12) + bios->rom[offset+0x14];
 
   if(rnw)
     nv_read_masked_segment(bios, bios->str[7], off, 0x2E, 0xFF);
@@ -732,8 +728,8 @@ void parse_string_table(struct nvbios *bios, int offset, int length, char rnw)
 
   for(i = 0; i < 7; i++)
   {
-    off = READ_SHORT(bios->rom, offset);
-    len = bios->rom[offset + 2];
+    off = READ_LE_SHORT(bios->rom, offset);
+    len = bios->rom[offset+2];
 
     if(rnw)
       nv_read_segment(bios, bios->str[i], off, len);
@@ -747,7 +743,7 @@ void parse_string_table(struct nvbios *bios, int offset, int length, char rnw)
 void nv5_parse(struct nvbios *bios, u_short nv_offset, char rnw)
 {
   /* Go to the position containing the offset to the card name, it is 30 away from NV. */
-  int offset = READ_SHORT(bios->rom, nv_offset + 30);
+  int offset = READ_LE_SHORT(bios->rom, nv_offset + 30);
 
   if(rnw)
     nv_read(bios, bios->str[0], offset);
@@ -761,19 +757,19 @@ void nv30_parse(struct nvbios *bios, u_short nv_offset, char rnw)
   u_short perf_offset=0;
   u_short volt_offset=0;
 
-  int offset = READ_SHORT(bios->rom, nv_offset + 30);
+  int offset = READ_LE_SHORT(bios->rom, nv_offset + 30);
 
   if(rnw)
     nv_read(bios, bios->str[0],offset);
   else
     nv_write(bios, bios->str[0],offset);
 
-  init_offset = READ_SHORT(bios->rom, nv_offset + 0x4d);
+  init_offset = READ_LE_SHORT(bios->rom, nv_offset + 0x4d);
 
-  volt_offset = READ_SHORT(bios->rom, nv_offset + 0x98);
+  volt_offset = READ_LE_SHORT(bios->rom, nv_offset + 0x98);
   parse_voltage_table(bios, volt_offset, rnw);
 
-  perf_offset = READ_SHORT(bios->rom, nv_offset + 0x94);
+  perf_offset = READ_LE_SHORT(bios->rom, nv_offset + 0x94);
   nv30_parse_performance_table(bios, perf_offset, rnw);
 }
 
@@ -789,8 +785,8 @@ void parse_bit_structure(struct nvbios *bios, u_int bit_offset, char rnw)
   while (entry->id[0] || entry->id[1])
   {
     // Big endian support
-    entry_length = READ_SHORT(entry->len, 0);
-    entry_offset = READ_SHORT(entry->offset, 0);
+    entry_length = READ_LE_SHORT(entry->len, 0);
+    entry_offset = READ_LE_SHORT(entry->offset, 0);
 
     switch (entry->id[0])  // TODO: To be completely safe I should make sure each case is entered at most 1 time
     {
@@ -812,7 +808,7 @@ void parse_bit_structure(struct nvbios *bios, u_int bit_offset, char rnw)
         if(rnw)
         {
           nv40_bios_version_to_str(bios, bios->version[0], entry_offset);
-          bios->text_time = READ_SHORT(bios->rom, entry_offset + 0x0a);
+          bios->text_time = READ_LE_SHORT(bios->rom, entry_offset + 0x0a);
         }
         else
         {
@@ -821,12 +817,12 @@ void parse_bit_structure(struct nvbios *bios, u_int bit_offset, char rnw)
         }
         break;
       case 'C': // Configuration table; it contains at least PLL parameters
-        offset = READ_SHORT(bios->rom, entry_offset + 0x8);
+        offset = READ_LE_SHORT(bios->rom, entry_offset + 0x8);
         //if(rnw)
         //  parse_bit_pll_table(bios, offset); //this function can only read
         break;
       case 'I': // Init table
-        offset = READ_SHORT(bios->rom, entry_offset);
+        offset = READ_LE_SHORT(bios->rom, entry_offset);
         //if(rnw)
         //  parse_bit_init_script_table(bios, offset, entry_length); //this function can only read
         break;
@@ -835,7 +831,7 @@ void parse_bit_structure(struct nvbios *bios, u_int bit_offset, char rnw)
         // NOTE: Why is Fermi 0x4512?
         // TODO: dont use version, use arch?
         // TODO: test the rebranded G96's
-        offset = READ_SHORT(bios->rom, entry_offset);
+        offset = READ_LE_SHORT(bios->rom, entry_offset);
         parse_bit_performance_table(bios, offset, rnw);
 
         // test: again not sure yet
@@ -843,19 +839,19 @@ void parse_bit_structure(struct nvbios *bios, u_int bit_offset, char rnw)
         // NOTE: One test that always works so far is if perf_table_version == 0x40
         if(bios->arch & (GF100 | UNKNOWN) || bit_table_version == 0x4413)
         {
-          offset = READ_SHORT(bios->rom, entry_offset + 0x0c);
+          offset = READ_LE_SHORT(bios->rom, entry_offset + 0x0c);
           parse_voltage_table(bios,offset, rnw);
 
           // test: not sure this is correct
-          offset = READ_SHORT(bios->rom, entry_offset + 0x10); // potential offsets: 0x4, 0x8, 0x10, 0x18
+          offset = READ_LE_SHORT(bios->rom, entry_offset + 0x10); // potential offsets: 0x4, 0x8, 0x10, 0x18
           parse_bit_temperature_table(bios, offset, rnw);
         }
         else
         {
-          offset = READ_SHORT(bios->rom, entry_offset + 0x0c);
+          offset = READ_LE_SHORT(bios->rom, entry_offset + 0x0c);
           parse_bit_temperature_table(bios, offset, rnw);
 
-          offset = READ_SHORT(bios->rom, entry_offset + 0x10);
+          offset = READ_LE_SHORT(bios->rom, entry_offset + 0x10);
           parse_voltage_table(bios, offset, rnw);
         }
         break;
@@ -866,16 +862,16 @@ void parse_bit_structure(struct nvbios *bios, u_int bit_offset, char rnw)
         if(rnw)
         {
           nv40_bios_version_to_str(bios, bios->version[1], entry_offset);
-          bios->board_id = READ_SHORT(bios->rom, entry_offset + 0x0b);
+          bios->board_id = READ_LE_SHORT(bios->rom, entry_offset + 0x0b);
           nv_read_segment(bios, bios->build_date,entry_offset + 0x0f, 8);
-          bios->hierarchy_id = bios->rom[entry_offset + 0x24];
+          bios->hierarchy_id = bios->rom[entry_offset+0x24];
         }
         else
         {
           nv40_str_to_bios_version(bios, bios->version[1], entry_offset);
           *(u_short *)(bios->rom + entry_offset + 0x0b) = WRITE_LE_SHORT(bios->board_id);
           nv_write_segment(bios, bios->build_date,entry_offset + 0x0f, 8);
-          bios->rom[entry_offset + 0x24] = bios->hierarchy_id;
+          bios->rom[entry_offset+0x24] = bios->hierarchy_id;
         }
         break;
     }
@@ -898,13 +894,13 @@ int parse_bios(struct nvbios *bios, char rnw)
   // Does pcir_offset + 20 == 1 indicate BMP?
   if(rnw)
   {
-    bios->subven_id = READ_SHORT(bios->rom, 0x54);
-    bios->subsys_id = READ_SHORT(bios->rom, 0x56);
+    bios->subven_id = READ_LE_SHORT(bios->rom, 0x54);
+    bios->subsys_id = READ_LE_SHORT(bios->rom, 0x56);
     nv_read_segment(bios, bios->mod_date, 0x38, 8);
 
     pcir_offset = locate_segment(bios, pcir_tag, 0, 4);
 
-    bios->device_id = READ_SHORT(bios->rom, pcir_offset + 6);
+    bios->device_id = READ_LE_SHORT(bios->rom, pcir_offset + 6);
     get_card_name(bios->device_id, bios->adapter_name);
     bios->arch = get_gpu_arch(bios->device_id);
     get_subvendor_name(bios->subven_id, bios->vendor_name);
@@ -924,7 +920,7 @@ int parse_bios(struct nvbios *bios, char rnw)
 
       /* Go to the bios version */
       /* Not perfect for bioses containing 5 numbers */
-      version = READ_INT(bios->rom, nv_offset + 10);
+      version = READ_LE_INT(bios->rom, nv_offset + 10);
       bios_version_to_str(bios->version[0], version);
 
       if(bios->arch & NV3X)
@@ -986,7 +982,7 @@ int parse_bios(struct nvbios *bios, char rnw)
       bios->checksum = bios->checksum + bios->rom[i];
 
     if(!bios->no_correct_checksum)
-      bios->rom[bios->rom_size - 1] = bios->rom[bios->rom_size - 1] - bios->checksum;
+      bios->rom[bios->rom_size-1] = bios->rom[bios->rom_size-1] - bios->checksum;
 
     bios->crc = CRC(0, bios->rom, bios->rom_size);
     bios->fake_crc = CRC(0, bios->rom, NV_PROM_SIZE);
@@ -1088,8 +1084,8 @@ int verify_bios(struct nvbios *bios)
 
   // Size test
   index_based_size = bios->rom[2];
-  size_offset = 0x10 + READ_SHORT(bios->rom, 0x18);
-  offset_based_size = READ_SHORT(bios->rom, size_offset);
+  size_offset = 0x10 + READ_LE_SHORT(bios->rom, 0x18);
+  offset_based_size = READ_LE_SHORT(bios->rom, size_offset);
   if(index_based_size != offset_based_size)
   {
     printf("Error: Rom size validation failure\n");
@@ -1104,10 +1100,10 @@ int verify_bios(struct nvbios *bios)
     return 0;
   }
 
-  device_id = READ_SHORT(bios->rom, pcir_offset + 6);
+  device_id = READ_LE_SHORT(bios->rom, pcir_offset + 6);
 
   // Fail if the bios is not from an Nvidia card
-  if(READ_SHORT(bios->rom, pcir_offset + 4) != 0x10de)
+  if(READ_LE_SHORT(bios->rom, pcir_offset + 4) != 0x10de)
   {
     printf("Error: Could not find Nvidia signature\n");
     return 0;
@@ -1126,7 +1122,7 @@ int verify_bios(struct nvbios *bios)
 
     /* We don't support old bioses. Mainly some old tnt1 models */
     // !!! Warning this was signed char *
-    if(bios->rom[nv_offset + 5] < 5)
+    if(bios->rom[nv_offset+5] < 5)
     {
       printf("Error: This card/rom is too old\n");
       return 0;
@@ -1193,7 +1189,7 @@ int write_bios(struct nvbios *bios, const char *filename)
   if(bios->verbose)
     printf("------------------------------------\n%s\n------------------------------------\n", __func__);
 
-  if(!parse_bios(bios, 0) && !bios->force)
+  if(!parse_bios(bios, 0) && !bios->force)        // write the (potentially edited) bios content to the rom
   {
     printf("Error: An error occured in writing the bios so output has been disabled\n");
     printf("       Use -f or --force if you are sure you know what you are doing\n");
@@ -1201,20 +1197,17 @@ int write_bios(struct nvbios *bios, const char *filename)
     return 0;
   }
 
-  // Internal verification
-  struct nvbios bios_cpy;
-  memset(&bios_cpy, 0, sizeof(struct nvbios));
-  memcpy(bios_cpy.rom, bios->rom, NV_PROM_SIZE);
-  bios_cpy.rom_size = bios->rom_size;
-  bios_cpy.checksum = bios->checksum;
-  bios_cpy.crc = bios->crc;
-  bios_cpy.fake_crc = bios->fake_crc;
-  bios_cpy.no_correct_checksum = bios->no_correct_checksum;
-  bios_cpy.pramin_priority = bios->pramin_priority;
+  // Internal verification:
+  //    Detect if the user added a reserved string or a reserved end tag to the rom in an illegal place
+  //    Detect if the programmer's read and write functions are not inverses of one another
+
+  struct nvbios bios_cpy;                         // create a new bios struct
+  memset(&bios_cpy, 0, sizeof(struct nvbios));    // clear all bios content
+  memcpy(bios_cpy.rom, bios->rom, NV_PROM_SIZE);  // copy rom data from old bios struct to new bios struct
+  bios_cpy.rom_size = bios->rom_size;             // copy some other struct bios members that parse_bios will not set
   bios_cpy.force = bios->force;
 
-  // keep verbose off during our internal check
-  if(!parse_bios(&bios_cpy, 1) && !bios->force)
+  if(!parse_bios(&bios_cpy, 1) && !bios->force)   // re-read the bios
   {
     printf("Error: An error occured in parsing the edited bios so output has been disabled\n");
     printf("       Use -f or --force if you are sure you know what you are doing\n");
@@ -1222,12 +1215,17 @@ int write_bios(struct nvbios *bios, const char *filename)
     return 0;
   }
 
-  // now restore the verbose state so we can compare
+  // Copy all other struct bios members so the bioses can be compared
+  bios_cpy.checksum = bios->checksum;
+  bios_cpy.crc = bios->crc;
+  bios_cpy.fake_crc = bios->fake_crc;
+  bios_cpy.no_correct_checksum = bios->no_correct_checksum;
+  bios_cpy.pramin_priority = bios->pramin_priority;
   bios_cpy.verbose = bios->verbose;
 
-  if(memcmp(&bios_cpy, bios, sizeof(struct nvbios)))
+  if(memcmp(&bios_cpy, bios, sizeof(struct nvbios))) // compare the bioses
   {
-    printf("Error: Internal copy verification error\n");
+    printf("Error: Unable to reparse the edited bios to get the appropriate struct bios members\n");
     return 0;
   }
 
@@ -1266,7 +1264,7 @@ int load_bios_file(struct nvbios *bios, const char* filename)
 
   stat(filename, &stbuf);
 
-  if ((stbuf.st_mode & S_IFMT) == S_IFDIR)
+  if((stbuf.st_mode & S_IFMT) == S_IFDIR)
   {
     printf("Error: %s is a directory, not a file\n", filename);
     return 0;
@@ -1338,11 +1336,11 @@ int load_bios_pramin(struct nvbios *bios)
   }
 
   /* On NV5x cards we need to let pramin point to the bios */
-  if (nv_card->arch > NV4X)
+  if(nv_card->arch > NV4X)
   {
     uint32_t vbios_vram = (nv_card->PDISPLAY[0x9f04/4] & ~0xff) << 8;
 
-    if (!vbios_vram)
+    if(!vbios_vram)
       vbios_vram = (nv_card->PMC[0x1700/4] << 16) + 0xf0000;
 
     old_bar0_pramin = nv_card->PMC[0x1700/4];
@@ -1353,7 +1351,7 @@ int load_bios_pramin(struct nvbios *bios)
   rom = (u_char*)nv_card->PRAMIN;
   memcpy(bios->rom, rom, NV_PROM_SIZE);
 
-  if (nv_card->arch > NV4X)
+  if(nv_card->arch > NV4X)
     nv_card->PMC[0x1700/4] = old_bar0_pramin;
 
   bios->rom_size = get_rom_size(bios);
@@ -1602,14 +1600,14 @@ int set_speaker(struct nvbios *bios, char state)
     return 0;
   }
 
-  if(locate_masked_segment(bios, toggle_string, mask, first_offset+1, 5))
+  if(locate_masked_segment(bios, toggle_string, mask, first_offset + 1, 5))
   {
     printf("Error: found potential speaker %s multiple times\n", state? "enable" : "disable");
     return 0;
   }
 
   // Here is where the AL register's previous value is reset and rewritten?
-  second_offset = locate_segment(bios, reset_string, first_offset+5, 3);
+  second_offset = locate_segment(bios, reset_string, first_offset + 5, 3);
 
   if(!second_offset)
   {
@@ -1687,7 +1685,7 @@ int bit_init_script_table_get_next_entry(struct nvbios *bios, int offset)
     case 'K': /* 0x4B */
 #if DEBUG
       /* +1 = PLL register, +5 = value */
-      printf("'%c'\t%08x %08x\n", id, READ_INT(bios->rom, offset+1), READ_INT(bios->rom, offset+5));
+      printf("'%c'\t%08x %08x\n", id, READ_LE_INT(bios->rom, offset+1), READ_LE_INT(bios->rom, offset+5));
 #endif
       offset += 9;
       break;
@@ -1726,12 +1724,12 @@ int bit_init_script_table_get_next_entry(struct nvbios *bios, int offset)
         /  +5 number of values (8-bit)
         /  +6 value (32-bit) to regbase+4
         /  .. */
-        int base = READ_INT(bios->rom, offset+1);
+        int base = READ_LE_INT(bios->rom, offset+1);
         int number = bios->rom[offset+5];
 
         printf("'%c'\tbase: %08x number: %d\n", id, base, number);
         for(i=0; i<number; i++)
-          printf("'%c'\t %08x: %08x\n", id, base+4*i, READ_INT(bios->rom, offset+6 + 4*i));
+          printf("'%c'\t %08x: %08x\n", id, base+4*i, READ_LE_INT(bios->rom, offset+6 + 4*i));
       }
 #endif
       offset += 6 + bios->rom[offset+5] * 4;
@@ -1754,7 +1752,7 @@ int bit_init_script_table_get_next_entry(struct nvbios *bios, int offset)
       /  +5 value (32-bit)
       /  +9 value (32-bit)
       */
-      printf("'%c'\t%08x %08x %08x\n", id, READ_INT(bios->rom, offset+1), READ_INT(bios->rom, offset+5), READ_INT(bios->rom, offset+9));
+      printf("'%c'\t%08x %08x %08x\n", id, READ_LE_INT(bios->rom, offset+1), READ_LE_INT(bios->rom, offset+5), READ_LE_INT(bios->rom, offset+9));
 #endif
       offset += 13;
       break;
@@ -1770,7 +1768,7 @@ int bit_init_script_table_get_next_entry(struct nvbios *bios, int offset)
     case 'n': /* 0x6e */
 #if DEBUG
       /* +1 = register, +5 = AND-mask, +9 = value */
-      printf("'%c'\t%08x %08x %08x\n", id, READ_INT(bios->rom, offset+1), READ_INT(bios->rom, offset+5), READ_INT(bios->rom, offset+9));
+      printf("'%c'\t%08x %08x %08x\n", id, READ_LE_INT(bios->rom, offset+1), READ_LE_INT(bios->rom, offset+5), READ_LE_INT(bios->rom, offset+9));
 #endif
       offset += 13;
       break;
@@ -1805,21 +1803,21 @@ int bit_init_script_table_get_next_entry(struct nvbios *bios, int offset)
       /  +4 AND-mask (8-bit)
       /  +5 OR-with (8-bit)
       */
-      printf("'%c'\tCRTC reg: %x CRTC index: %x AND-mask: %x OR-with: %x\n", id, READ_SHORT(bios->rom, offset+1), bios->rom[offset+3], bios->rom[offset+4], bios->rom[offset+5]);
+      printf("'%c'\tCRTC reg: %x CRTC index: %x AND-mask: %x OR-with: %x\n", id, READ_LE_SHORT(bios->rom, offset+1), bios->rom[offset+3], bios->rom[offset+4], bios->rom[offset+5]);
 #endif
       offset += 6;
       break;
     case 'y': /* 0x79 */
 #if DEBUG
       /* +1 = register, +5 = clock */
-      printf("'%c'\t%08x %08x (%dMHz)\n", id, READ_INT(bios->rom, offset+1), READ_SHORT(bios->rom, offset+5), READ_SHORT(bios->rom, offset+5)/100);
+      printf("'%c'\t%08x %08x (%dMHz)\n", id, READ_LE_INT(bios->rom, offset+1), READ_LE_SHORT(bios->rom, offset+5), READ_LE_SHORT(bios->rom, offset+5)/100);
 #endif
       offset += 7;
       break;
     case 'z': /* 0x7a: INIT_ZM_REG */
 #if DEBUG
       /* +1 = register, +5 = value */
-      printf("'%c'\t%08x %08x\n", id, READ_INT(bios->rom, offset+1), READ_INT(bios->rom, offset+5));
+      printf("'%c'\t%08x %08x\n", id, READ_LE_INT(bios->rom, offset+1), READ_LE_INT(bios->rom, offset+5));
 #endif
       offset += 9;
       break;
@@ -1837,10 +1835,10 @@ int bit_init_script_table_get_next_entry(struct nvbios *bios, int offset)
         */
         int size = bios->rom[offset+5];
         int number = bios->rom[offset+6];
-        printf("'%c'\treg: %08x size: %d number: %d", id, READ_INT(bios->rom, offset+1), size, number);
+        printf("'%c'\treg: %08x size: %d number: %d", id, READ_LE_INT(bios->rom, offset+1), size, number);
         /* why times 2? */
         for(i=0; i<number*size*2; i++)
-          printf(" %08x", READ_INT(bios->rom, offset + 7 + i));
+          printf(" %08x", READ_LE_INT(bios->rom, offset + 7 + i));
         printf("\n");
       }
 #endif
@@ -1852,13 +1850,13 @@ int bit_init_script_table_get_next_entry(struct nvbios *bios, int offset)
     case 0x91: /* 0x91 */
 #if DEBUG
       /* +1 = pll register, +5 = ?, +9 = ?, +13 = ? */
-      printf("'%c'\t%08x %08x\n", id, READ_INT(bios->rom, offset+1), READ_INT(bios->rom, offset+5));
+      printf("'%c'\t%08x %08x\n", id, READ_LE_INT(bios->rom, offset+1), READ_LE_INT(bios->rom, offset+5));
 #endif
       offset += 18;
       break;
     case 0x97: /* 0x97 */
 #if DEBUG
-      printf("'%c'\t%08x %08x\n", id, READ_INT(bios->rom, offset+1), READ_INT(bios->rom, offset+5));
+      printf("'%c'\t%08x %08x\n", id, READ_LE_INT(bios->rom, offset+1), READ_LE_INT(bios->rom, offset+5));
 #endif
       offset += 13;
       break;
@@ -1878,7 +1876,7 @@ void parse_bit_init_script_table(struct nvbios *bios, int init_offset, int len)
   u_char id;
 
   /* Table 1 */
-  offset = READ_SHORT(bios->rom, init_offset);
+  offset = READ_LE_SHORT(bios->rom, init_offset);
 
   /* For pipeline modding purposes we cache 0x1540 and for PLL generation the PLLs */
   id = bios->rom[offset];
@@ -1892,8 +1890,8 @@ void parse_bit_init_script_table(struct nvbios *bios, int init_offset, int len)
 
     if(id == 'z')
     {
-      int reg = READ_INT(bios->rom, offset+1);
-      u_int val = READ_INT(bios->rom, offset+5);
+      int reg = READ_LE_INT(bios->rom, offset+1);
+      u_int val = READ_LE_INT(bios->rom, offset+5);
       switch(reg)
       {
         case 0x1540:
@@ -1912,7 +1910,7 @@ void parse_bit_init_script_table(struct nvbios *bios, int init_offset, int len)
 #if DEBUG /* Read all init tables and print some debug info */
   int i;
 /* Table 1 */
-  offset = READ_SHORT(bios->rom, init_offset);
+  offset = READ_LE_SHORT(bios->rom, init_offset);
 
   for(i=0; i<=len; i+=2)
   {
@@ -1920,7 +1918,7 @@ void parse_bit_init_script_table(struct nvbios *bios, int init_offset, int len)
     if(!offset)
     {
       init_offset += 2;
-      offset = READ_SHORT(bios->rom, init_offset);
+      offset = READ_LE_SHORT(bios->rom, init_offset);
       continue;
     }
 
@@ -1942,7 +1940,7 @@ void parse_bit_init_script_table(struct nvbios *bios, int init_offset, int len)
     /* Pointer to next init table */
     init_offset += 2;
     /* Get location of next table */
-    offset = READ_SHORT(bios->rom, init_offset);
+    offset = READ_LE_SHORT(bios->rom, init_offset);
   }
 #endif
 
@@ -1958,19 +1956,19 @@ void parse_bit_pll_table(struct nvbios *bios, u_short offset)
   for(i=0; i<header->num_entries; i++)
   {
     /* Each type of pll (corresponding to a certain register) has its own limits */
-    bios->pll_lst[i].reg = READ_INT(bios->rom, offset);
+    bios->pll_lst[i].reg = READ_LE_INT(bios->rom, offset);
 
     /* Minimum/maximum frequency each VCO can generate */
-    bios->pll_lst[i].VCO1.minFreq = READ_SHORT(bios->rom, offset+0x4)*1000;
-    bios->pll_lst[i].VCO1.maxFreq = READ_SHORT(bios->rom, offset+0x6)*1000;
-    bios->pll_lst[i].VCO2.minFreq = READ_SHORT(bios->rom, offset+0x8)*1000;
-    bios->pll_lst[i].VCO2.maxFreq = READ_SHORT(bios->rom, offset+0xa)*1000;
+    bios->pll_lst[i].VCO1.minFreq = READ_LE_SHORT(bios->rom, offset+0x4)*1000;
+    bios->pll_lst[i].VCO1.maxFreq = READ_LE_SHORT(bios->rom, offset+0x6)*1000;
+    bios->pll_lst[i].VCO2.minFreq = READ_LE_SHORT(bios->rom, offset+0x8)*1000;
+    bios->pll_lst[i].VCO2.maxFreq = READ_LE_SHORT(bios->rom, offset+0xa)*1000;
 
     /* Minimum/maximum input frequency for each VCO */
-    bios->pll_lst[i].VCO1.minInputFreq = READ_SHORT(bios->rom, offset+0xc)*1000;
-    bios->pll_lst[i].VCO1.maxInputFreq = READ_SHORT(bios->rom, offset+0xe)*1000;
-    bios->pll_lst[i].VCO2.minInputFreq = READ_SHORT(bios->rom, offset+0x10)*1000;
-    bios->pll_lst[i].VCO2.maxInputFreq = READ_SHORT(bios->rom, offset+0x12)*1000;
+    bios->pll_lst[i].VCO1.minInputFreq = READ_LE_SHORT(bios->rom, offset+0xc)*1000;
+    bios->pll_lst[i].VCO1.maxInputFreq = READ_LE_SHORT(bios->rom, offset+0xe)*1000;
+    bios->pll_lst[i].VCO2.minInputFreq = READ_LE_SHORT(bios->rom, offset+0x10)*1000;
+    bios->pll_lst[i].VCO2.maxInputFreq = READ_LE_SHORT(bios->rom, offset+0x12)*1000;
 
     /* Low and high values for the dividers and multipliers */
     bios->pll_lst[i].VCO1.minN = bios->rom[offset+0x14];
@@ -1986,19 +1984,19 @@ void parse_bit_pll_table(struct nvbios *bios, u_short offset)
     bios->pll_lst[i].var1e = bios->rom[offset+0x1e];
 
 #if DEBUG
-    printf("register: %#08x\n", READ_INT(bios->rom, offset));
+    printf("register: %#08x\n", READ_LE_INT(bios->rom, offset));
 
     /* Minimum/maximum frequency each VCO can generate */
-    printf("minVCO_1: %d\n", READ_SHORT(bios->rom, offset+0x4));
-    printf("maxVCO_1: %d\n", READ_SHORT(bios->rom, offset+0x6));
-    printf("minVCO_2: %d\n", READ_SHORT(bios->rom, offset+0x8));
-    printf("maxVCO_2: %d\n", READ_SHORT(bios->rom, offset+0xa));
+    printf("minVCO_1: %d\n", READ_LE_SHORT(bios->rom, offset+0x4));
+    printf("maxVCO_1: %d\n", READ_LE_SHORT(bios->rom, offset+0x6));
+    printf("minVCO_2: %d\n", READ_LE_SHORT(bios->rom, offset+0x8));
+    printf("maxVCO_2: %d\n", READ_LE_SHORT(bios->rom, offset+0xa));
 
     /* Minimum/maximum input frequency for each VCO */
-    printf("minVCO_1_in: %d\n", READ_SHORT(bios->rom, offset+0xc));
-    printf("minVCO_2_in: %d\n", READ_SHORT(bios->rom, offset+0xe));
-    printf("maxVCO_1_in: %d\n", READ_SHORT(bios->rom, offset+0x10));
-    printf("maxVCO_2_in: %d\n", READ_SHORT(bios->rom, offset+0x12));
+    printf("minVCO_1_in: %d\n", READ_LE_SHORT(bios->rom, offset+0xc));
+    printf("minVCO_2_in: %d\n", READ_LE_SHORT(bios->rom, offset+0xe));
+    printf("maxVCO_1_in: %d\n", READ_LE_SHORT(bios->rom, offset+0x10));
+    printf("maxVCO_2_in: %d\n", READ_LE_SHORT(bios->rom, offset+0x12));
 
     /* Low and high values for the dividers and multipliers */
     printf("N1_low: %d\n", bios->rom[offset+0x14]);
