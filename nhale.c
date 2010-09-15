@@ -73,6 +73,7 @@ int main(int argc, char **argv)
   struct nvbios bios;
   char *infile = NULL, *outfile = NULL;
   unsigned int card_index = 0;
+  unsigned char card_index_flag = 0;
   unsigned int num_cards = 0;
   static int list_flag = 0;
   int print_info = 0;
@@ -115,6 +116,7 @@ int main(int argc, char **argv)
         break;
       case 'i':
         card_index = atoi(optarg);
+        card_index_flag = 1;
         break;
       case 'n':
         bios.no_correct_checksum = 1;
@@ -160,7 +162,7 @@ int main(int argc, char **argv)
         card_index = 0;
         break;
       default:
-        if(!card_index)
+        if(!card_index_flag)
         {
           printf("There are multiple Nvidia cards detected on this machine.\n");
           printf("Please use -i or --index to specify which card to use for operations\n");
