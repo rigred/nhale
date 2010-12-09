@@ -44,15 +44,15 @@
 #ifndef NHALE_BIG_ENDIAN
   #define READ_LE_SHORT(rom, offset) (*(u_short *)(rom + offset))
   #define READ_LE_INT(rom, offset)   (*(u_int *)(rom + offset))
-  #define WRITE_LE_SHORT(data)    (data)
-  #define WRITE_LE_INT(data)      (data)
-  #define CRC(x,y,z) crc32_little(x,y,z)
+  #define WRITE_LE_SHORT(data)       (data)
+  #define WRITE_LE_INT(data)         (data)
+  #define CRC(x,y,z)                 crc32_little(x,y,z)
 #else
-  #define READ_LE_SHORT(rom, offset) (READ_BYTE(rom, offset+1) << 8   | READ_BYTE(rom, offset))
+  #define READ_LE_SHORT(rom, offset) (READ_BYTE(rom, offset+1) << 8 | READ_BYTE(rom, offset))
   #define READ_LE_INT(rom, offset)   (READ_LE_SHORT(rom, offset+2) << 16 | READ_LE_SHORT(rom, offset))
-  #define WRITE_LE_SHORT(data)    (((data) << 8 & 0xff00)   | ((data) >> 8 & 0x00ff ))
-  #define WRITE_LE_INT(data)      (((data) << 24 & 0xff000000) | ((data) << 8 & 0x00ff0000) | ((data) >> 8 & 0x0000ff00) | ((data) >> 24 & 0x000000ff))
-  #define CRC(x,y,z) crc32_big(x,y,z)
+  #define WRITE_LE_SHORT(data)       (((data) << 8 & 0xff00) | ((data) >> 8 & 0x00ff ))
+  #define WRITE_LE_INT(data)         (WRITE_LE_SHORT(data) << 16 | WRITE_LE_SHORT(data >> 16))
+  #define CRC(x,y,z)                 crc32_big(x,y,z)
 #endif
 
 // NOTICE: Never divide a value (by a non-power of two) from the rom and store in the nvbios structure.  Because of finite precision we cannot guarantee we can get the original value back.  This is especially important when the user doesn't edit their rom at all and thus no values should change.
@@ -61,10 +61,9 @@
 // NOTE: I use some tokens for table ends but I do not use tokens for table beginnings.  So far I have not been able to find a table leading to the bootup clocks so maybe I should use the token before the bootup clocks to get them.
 // TODO: Do pre-6 series parsing and Fermi parsing
 // TODO: Find out more about temp tables.  Also, find the softstraps and stuff.
-// TODO: Find all bit table versions to make parse_bit safer
-// TODO: Integrate dump_bios into write_bios
 // NOTE: Only write_bios, read_bios, and print_bios should be defined publicly?
 // NOTE: Make an undo stack
+// TODO: with #define assert or #define debug assert x_entries < x_active_entries
 
 // these are macros for the caps member of struct nvbios
 
@@ -107,9 +106,8 @@ struct BitPerformanceTableHeader
 // Read a string from a given offset
 void nv_read(struct nvbios *bios, char *str, u_short offset)
 {
-  // FIXME: I should probably make sure this doesnt read in something too big for the buffer.  Really I need to find out about old signon messages so I can remove nv_read altogether.
   u_short i;
-  for(i = 0; bios->rom[offset+i]; i++)
+  for(i = 0; bios->rom[offset+i] && i < 255; i++)
     str[i] = bios->rom[offset+i];
   str[i] = 0;
 }
@@ -117,7 +115,7 @@ void nv_read(struct nvbios *bios, char *str, u_short offset)
 void nv_write(struct nvbios *bios, char *str, u_short offset)
 {
   u_short i;
-  for(i = 0; bios->rom[offset+i]; i++)
+  for(i = 0; bios->rom[offset+i] && i < 255; i++)
     bios->rom[offset+i] = str[i];
 }
 
@@ -366,7 +364,7 @@ void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
       bios->perf_lst[i].memclk = READ_LE_SHORT(bios->rom, offset + memclk_offset);
 
       // !!! Warning this was signed char *
-      if(delta_offset && bios->arch & (NV47 | NV49))
+      if(delta_offset)
         if(bios->rom[offset+delta_offset])
           bios->perf_lst[i].delta = bios->rom[offset+delta_offset+1] / bios->rom[offset+delta_offset];
       /* Geforce8 cards have a shader clock, further the memory clock is at a different offset as well */
@@ -388,7 +386,7 @@ void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
 
       // !!! Warning this was signed char *
       // FIXME: need to figure out how to parse delta first
-      //if(delta_offset && bios->arch & (NV47 | NV49))
+      //if(delta_offset)
       //  if(bios->rom[offset+delta_offset])
       //    bios->perf_lst[i].delta = bios->rom[offset+delta_offset+1] / bios->rom[offset+delta_offset];
 
@@ -674,7 +672,6 @@ void parse_voltage_table(struct nvbios *bios, int offset, char rnw)
       fprintf(stderr, "Warning: There seem to be more active voltage table entries than internal maximum: %d\n", MAX_VOLT_LVLS);
 
   offset += start;
-//  for(i = 0; i < bios->volt_entries; i++)
   i = 0;
   while((version != 0x10 && READ_LE_SHORT(bios->rom, offset) != end_tag) || (version == 0x10 && i < 7))
   {
@@ -1049,7 +1046,7 @@ int main(int argc, char **argv)
   print_bios_info(&bios);
 
   bios_cpy = bios;
-  write_bios(&bios, NULL); // This prints an error when dumping but ignore it
+  write_bios(&bios, "debug.rom");
 
   if(memcmp(&bios, &bios_cpy, sizeof(struct nvbios)))
     printf("Write bios critical error\n");
@@ -1229,11 +1226,6 @@ int write_bios(struct nvbios *bios, const char *filename)
     return 0;
   }
 
-  return dump_bios(bios, filename);
-}
-
-int dump_bios(struct nvbios *bios, const char *filename)
-{
   FILE *fp = NULL;
   u_int i;
 
@@ -1241,7 +1233,10 @@ int dump_bios(struct nvbios *bios, const char *filename)
 
   fp = fopen(filename, "w+");
   if(!fp)
+  {
+    printf("Error: Unable to write to file %s\n", filename);
     return 0;
+  }
 
   for(i = 0; i < bios->rom_size; i++)
     fprintf(fp, "%c", bios->rom[i]);
@@ -1505,7 +1500,7 @@ void print_bios_info(struct nvbios *bios)
   else
     printf("BMP version: %x.%x\n", bios->major, bios->minor);
 
-  //TODO: print delta
+  //TODO: print delta; only print delta if(bios->arch & (NV47 | NV49))
 
   char shader_num[21], lock_nibble[8];
 
