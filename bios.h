@@ -155,7 +155,6 @@ u_int get_rom_size(struct nvbios *);
 int verify_bios(struct nvbios *);
 int read_bios(struct nvbios *, const char *);
 int write_bios(struct nvbios *, const char *);
-int dump_bios(struct nvbios *, const char *);
 int parse_bios(struct nvbios *, char);
 
 int load_bios_file(struct nvbios *, const char *);
