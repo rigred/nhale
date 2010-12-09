@@ -170,7 +170,7 @@ int main(int argc, char **argv)
         }
         if(card_index >= num_cards)
         {
-          printf("Invalid index\n");
+          printf("Invalid card index\n");
           return -1;
         }
     }
