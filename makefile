@@ -31,7 +31,7 @@ config.h:
 	rm -f nhale.temp.byte.order
 
 clean :
-	rm -f *.o *.a *~ nhale
+	rm -f *.o *.a nhale
 
 distclean: clean
 	rm -f config.h
