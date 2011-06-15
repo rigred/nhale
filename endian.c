@@ -4,8 +4,6 @@
 
 #ifdef NHALE_GET_ENDIANNESS
 
-// NOTE: I only consider big endian and little endian as possible byte orders
-
 int main(void)
 {
   union
@@ -16,6 +14,7 @@ int main(void)
 
   word.word = 1;
 
+  // NOTE: I only consider big endian and little endian as possible byte orders
   if(word.byte[0])
     printf("#undef NHALE_BIG_ENDIAN\n");
   else
