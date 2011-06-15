@@ -47,7 +47,7 @@
 */
 
 #include "crc32.h"
-/* Find a four-byte integer type for crc32_little() and crc32_big(). */
+// Find a four-byte integer type for crc32_little() and crc32_big().
 #include <stdint.h>
 
 static const unsigned long crc_table[8][256] =
@@ -486,17 +486,17 @@ static const unsigned long crc_table[8][256] =
   }
 };
 
-/* Definitions for doing the crc four data bytes at a time. */
+// Definitions for doing the crc four data bytes at a time.
 #  define REV(w) (((w)>>24)+(((w)>>8)&0xff00)+ \
                 (((w)&0xff00)<<8)+(((w)&0xff)<<24))
 
-/* ========================================================================= */
+// =========================================================================
 #define DOLIT4 c ^= *buf4++; \
         c = crc_table[3][c & 0xff] ^ crc_table[2][(c >> 8) & 0xff] ^ \
             crc_table[1][(c >> 16) & 0xff] ^ crc_table[0][c >> 24]
 #define DOLIT32 DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4; DOLIT4
 
-/* ========================================================================= */
+// =========================================================================
 unsigned int crc32_little(unsigned long crc, const unsigned char *buf, unsigned len)
 {
     register uint32_t c;
@@ -527,13 +527,13 @@ unsigned int crc32_little(unsigned long crc, const unsigned char *buf, unsigned 
     return (unsigned int)c;
 }
 
-/* ========================================================================= */
+// =========================================================================
 #define DOBIG4 c ^= *++buf4; \
         c = crc_table[4][c & 0xff] ^ crc_table[5][(c >> 8) & 0xff] ^ \
             crc_table[6][(c >> 16) & 0xff] ^ crc_table[7][c >> 24]
 #define DOBIG32 DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4; DOBIG4
 
-/* ========================================================================= */
+// =========================================================================
 unsigned int crc32_big(unsigned long crc, const unsigned char *buf, unsigned len)
 {
     register uint32_t c;
