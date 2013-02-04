@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Werror -Wall -Wextra -Wno-unused-parameter
+CFLAGS = -Wall -Wextra -Wno-unused-parameter
 CFLAGS_FUTURE = -Wswitch-break
 AR = ar
 OBJECTS = back_linux.o bios.o info.o crc32.o
