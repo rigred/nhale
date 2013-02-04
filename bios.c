@@ -408,14 +408,13 @@ void parse_bit_performance_table(struct nvbios *bios, int offset, char rnw)
   }
 
   bios->perf_entries = i;
-#ifdef DEBUG
+
   if(rnw)
   {
     printf("perf table version: %X\n", header->version);
     printf("active perf entries: %d\n", header->num_active_entries);
     printf("number of perf entries: %d\n", i);
   }
-#endif
 }
 
 void parse_bit_temperature_table(struct nvbios *bios, int offset, char rnw)
@@ -592,7 +591,6 @@ void parse_bit_temperature_table(struct nvbios *bios, int offset, char rnw)
   if(!rnw)
     bios->caps = old_caps;
 
-#if DEBUG
   if(rnw)
   {
     printf("temperature table version: %#x\n", header->version);
@@ -600,7 +598,6 @@ void parse_bit_temperature_table(struct nvbios *bios, int offset, char rnw)
     printf("offset: %.3f\n", (float)bios->sensor_cfg.diode_offset_mult / (float)bios->sensor_cfg.diode_offset_div);
     printf("slope: %.3f\n", (float)bios->sensor_cfg.slope_mult / (float)bios->sensor_cfg.slope_div);
   }
-#endif
 }
 
 /* Read the voltage table for nv30/nv40/nv50 cards */
@@ -659,13 +656,11 @@ void parse_voltage_table(struct nvbios *bios, int offset, char rnw)
   else
     bios->rom[offset+active_offset] = bios->active_volt_entries;
 
-#ifdef DEBUG
   if(rnw)
   {
     printf("voltage table version: %X\n", bios->rom[offset]);
     printf("number of volt entries: %d\n", bios->volt_entries);
   }
-#endif
 
   if(bios->verbose)
     if(bios->active_volt_entries > MAX_VOLT_LVLS)
