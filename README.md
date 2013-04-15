@@ -1,10 +1,10 @@
 nhale
 =====
-*WARNING: nhale may cause really hard crashes, data loss, and general sanity loss if you try to understand all of the output.*
+**WARNING: nhale may cause really hard crashes, data loss, and general sanity loss if you try to understand all of the output.**
 
 What is this thing?
 -------------------
-Dump your rom in Linux and print info about it. Use the -r option if your videobios is hidden (i.e. not available on the EEPROM).Credit goes to the original author Roderick Colenbrander.
+Dump your rom in Linux and print info about it. Use the -r option if your videobios is hidden (i.e. not available on the EEPROM).
 
 I'm crazy enough to run this. What do I need?
 ---------------------------------------------
