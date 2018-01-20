@@ -845,7 +845,7 @@ int get_gpu_arch(short device_id)
           break;
       }
       break;
-    case 0x1245:
+    case 0x1240:
       arch = GF116;
       break;
     case 0x06c0:
