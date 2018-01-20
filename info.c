@@ -675,7 +675,19 @@ static const struct pci_ids ids[] =
   { 0x0a7d, "Nvidia GT218-ES" },
   { 0x0a7e, "Nvidia GT218-INT-S" },
   { 0x0a7f, "Nvidia GT218-INT-B" },
-
+  
+  { 0x1241, "GF116 [GeForce GT 545 OEM]" },
+  { 0x1242, "GF116 [GeForce GT 545]" },
+  { 0x1243, "GF116 [GeForce GTX 550 Ti]" },
+  { 0x1245, "GF116 [GeForce GTS 450 Rev. 2]" },
+  { 0x1246, "GF116 [GeForce GT 550M]" },
+  { 0x1247, "GF116 [GeForce GT 635M]" },
+  { 0x1248, "GF116 [GeForce GT 555M]" },
+  { 0x1249, "GF116 [GeForce GTS 450 Rev. 3]" },
+  { 0x124b, "GF116 [GeForce GT 640 OEM]" },
+  { 0x124d, "GF116 [GeForce GT 555M]" },
+  { 0x1251, "GF116 [GeForce GTX 560M]" },
+  
   { 0x06c0, "Nvidia GeForce GTX 480" },
   { 0x06c4, "Nvidia GeForce GTX 465" },
   { 0x06cd, "Nvidia GeForce GTX 470" },
@@ -832,6 +844,9 @@ int get_gpu_arch(short device_id)
           arch = G86;
           break;
       }
+      break;
+    case 0x1245:
+      arch = GF116;
       break;
     case 0x06c0:
       arch = GF100;
